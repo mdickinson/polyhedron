@@ -160,7 +160,10 @@ def classify_triangle(v1, v2, v3, origin):
     # d is zero iff the face contains the origin; in this case, raise
     # an exception.
     #
-    # And nz is necessarily nonzero, else ...
+    # If nz == 0 then the triangle is vertical.  This means that the entire
+    # edge cycle projects down onto a line-segment.  The only way that this line can
+    # be a nontrivial cycle is if the face contains the origin, and in that
+    # case d will also be zero.
 
     nz = (v2[0] - v1[0]) * (v3[1] - v1[1]) - (v2[1] - v1[1]) * (v3[0] - v1[0])
 
@@ -184,8 +187,6 @@ def classify_triangle(v1, v2, v3, origin):
         mat[0][2] * mat[1][1] * mat[2][0])
 
     # Figure out why ...
-    assert nz != 0
-
     t_sign = d * nz
     if t_sign == 0:
         raise ValueError("Face contains origin")
