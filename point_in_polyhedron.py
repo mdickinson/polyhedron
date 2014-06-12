@@ -54,8 +54,6 @@ For each triangle:
 """
 import unittest
 
-import numpy
-
 
 def sign(x):
     """
@@ -107,8 +105,7 @@ def vertex_chain(v1, origin):
     """
     Map the vertex v1 to the corresponding 0-chain in cellular homology.
 
-    Return a pair (b, f) giving the integer coefficients of B and F
-    in C_0 = Z + Z.
+    Return coefficient of B in C_0 = Z + Z.
 
     Raise ValueError if v1 == origin.
 
@@ -117,28 +114,21 @@ def vertex_chain(v1, origin):
          sign(v1[1] - origin[1]) or sign(v1[2] - origin[2]))
     if not d:
         raise ValueError("Vertex contains origin")
-
-    if d > 0:
-        return numpy.array((0, 1))
-    else:
-        return numpy.array((1, 0))
+    return 0 if d > 0 else 1
 
 
 def edge_chain(v1, v2, origin):
     """
     Map the edge v1-v2 to the corresponding 1-chain in cellular homology.
 
-    Return a pair (l, r) giving the integer coefficients of L
-    and R in C_1 = Z + Z.
+    Return coefficient of L in C_1 = Z + Z.
 
     Raise ValueError if the edge goes through the origin.
 
     """
     edge_boundary = vertex_chain(v2, origin) - vertex_chain(v1, origin)
-
-    assert edge_boundary[0] == -edge_boundary[1]
-    if not edge_boundary[0]:
-        return numpy.array((0, 0))
+    if not edge_boundary:
+        return 0
 
     d = ccw2(v1, v2, origin)
     if d == 0:
@@ -149,10 +139,7 @@ def edge_chain(v1, v2, origin):
     if not d:
         raise ValueError("Edge contains origin")
 
-    if d * edge_boundary[0] > 0:
-        return numpy.array((0, d))
-    else:
-        return numpy.array((d, 0))
+    return 0 if d * edge_boundary > 0 else d
 
 
 def face_chain(v1, v2, v3, origin):
@@ -160,26 +147,23 @@ def face_chain(v1, v2, v3, origin):
     Map the triangle v1-v2-v3 to the corresponding 2-chain in cellular
     homology.
 
-    Return result as a pair (d, u) giving coefficients
-    of D and U in C_2 = Z + Z.
+    Return coefficient of D in the result.
+
+    Raise ValueError if the face contains the origin.
 
     """
     face_boundary = sum(
         edge_chain(start, end, origin)
         for start, end in [(v1, v2), (v2, v3), (v3, v1)])
 
-    assert face_boundary[0] == face_boundary[1]
-    if not face_boundary[0]:
-        return numpy.array((0, 0))
+    if not face_boundary:
+        return 0
 
     d = ccw3(v1, v2, v3, origin)
     if not d:
         raise ValueError("Face contains origin")
 
-    if d * face_boundary[0] > 0:
-        return numpy.array((0, d))
-    else:
-        return numpy.array((d, 0))
+    return 0 if d * face_boundary > 0 else d
 
 
 class Polyhedron(object):
@@ -205,11 +189,9 @@ class Polyhedron(object):
         the point.
 
         """
-        total_face = sum(
+        return sum(
             face_chain(v1, v2, v3, point)
             for v1, v2, v3 in self.triangle_positions())
-        assert total_face[0] == total_face[1]
-        return total_face[0]
 
 
 # Some sample polyhedra.
