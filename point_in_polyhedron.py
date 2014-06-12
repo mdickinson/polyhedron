@@ -134,10 +134,10 @@ def edge_chain(v1, v2, origin):
     Raise ValueError if the edge goes through the origin.
 
     """
-    boundary = vertex_chain(v2, origin) - vertex_chain(v1, origin)
+    edge_boundary = vertex_chain(v2, origin) - vertex_chain(v1, origin)
 
-    assert boundary[0] == -boundary[1]
-    if not boundary[0]:
+    assert edge_boundary[0] == -edge_boundary[1]
+    if not edge_boundary[0]:
         return numpy.array((0, 0))
 
     d = ccw2(v1, v2, origin)
@@ -149,10 +149,10 @@ def edge_chain(v1, v2, origin):
     if not d:
         raise ValueError("Edge contains origin")
 
-    if d * boundary[1] > 0:
-        return numpy.array((d, 0))
-    else:
+    if d * edge_boundary[0] > 0:
         return numpy.array((0, d))
+    else:
+        return numpy.array((d, 0))
 
 
 def face_chain(v1, v2, v3, origin):
