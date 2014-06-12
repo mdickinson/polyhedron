@@ -1,5 +1,5 @@
-"""Code to determine the winding number for a polyhedron around a point, where that polyhedron
-is expressed as a (closed, oriented) triangulated surface.
+"""Code to determine the winding number for a polyhedron around a point, where
+that polyhedron is expressed as a (closed, oriented) triangulated surface.
 
 Without loss of generality, we can assume that the point we're interested in is
 the origin.
@@ -51,9 +51,41 @@ For each triangle:
   map the vertices to F and B.  If all 3 map to the same, nothing to do.
   map the edges to L and R.
 
-
 """
 import unittest
+
+
+def sign(x):
+    """
+    Return 1 if x is positive, -1 if it's negative, and 0 if it's zero.
+
+    """
+    return (x > 0) - (x < 0)
+
+
+def ccw3(p1, p2, p3, p4):
+    """
+    Determine whether the counterclockwise triangle p1-p2-p3
+    has normal pointing away or towards p4.
+
+    Return 1 if the normal points away from p4, -1 if
+    it points towards p4, and 0 if p4 is *contained*
+    in the plane of the triangle p1-p2-p3.
+
+    """
+    mat = [
+        [p1[0] - p4[0], p2[0] - p4[0], p3[0]- p4[0]],
+        [p1[1] - p4[1], p2[1] - p4[1], p3[1]- p4[1]],
+        [p1[2] - p4[2], p2[2] - p4[2], p3[2]- p4[2]],
+    ]
+    d = (
+        mat[0][0] * mat[1][1] * mat[2][2] +
+        mat[0][1] * mat[1][2] * mat[2][0] +
+        mat[0][2] * mat[1][0] * mat[2][1] -
+        mat[0][0] * mat[1][2] * mat[2][1] -
+        mat[0][1] * mat[1][0] * mat[2][2] -
+        mat[0][2] * mat[1][1] * mat[2][0])
+    return sign(d)
 
 
 def ccw(p1, p2, p3):
@@ -165,28 +197,23 @@ def classify_triangle(v1, v2, v3, origin):
     # be a nontrivial cycle is if the face contains the origin, and in that
     # case d will also be zero.
 
-    nz = (v2[0] - v1[0]) * (v3[1] - v1[1]) - (v2[1] - v1[1]) * (v3[0] - v1[0])
+    # XXX Computing nz is redundant: we already have the classification
+    # of the edge cycle.
 
+    nz = (v2[0] - v1[0]) * (v3[1] - v1[1]) - (v2[1] - v1[1]) * (v3[0] - v1[0])
+    nz = sign(nz)
     # d is the determinant of the 3x3 matrix |v1-origin v2-origin v3-origin|,
     # or equivalently, of the 4x4 matrix
     #
     #   |v1 v2 v3 origin|
     #   | 1  1  1   1   |
 
-    mat = [
-        [v1[0] - origin[0], v2[0] - origin[0], v3[0]- origin[0]],
-        [v1[1] - origin[1], v2[1] - origin[1], v3[1]- origin[1]],
-        [v1[2] - origin[2], v2[2] - origin[2], v3[2]- origin[2]],
-    ]
-    d = (
-        mat[0][0] * mat[1][1] * mat[2][2] +
-        mat[0][1] * mat[1][2] * mat[2][0] +
-        mat[0][2] * mat[1][0] * mat[2][1] -
-        mat[0][0] * mat[1][2] * mat[2][1] -
-        mat[0][1] * mat[1][0] * mat[2][2] -
-        mat[0][2] * mat[1][1] * mat[2][0])
+    d = ccw3(v1, v2, v3, origin)
+    if not d:
+        raise ValueError("Face contains origin")
 
-    # Figure out why ...
+    assert nz
+
     t_sign = d * nz
     if t_sign == 0:
         raise ValueError("Face contains origin")
@@ -205,8 +232,10 @@ class Polyhedron(object):
         self.triangles = triangles
 
     def winding_number(self, point):
-        """
-        Determine whether the given point is inside the polyhedron.
+        """Determine whether the given point is inside the polyhedron.
+
+        More precisely, determine the winding number of the polyhedron around
+        the point.
 
         """
         face_contributions = []
@@ -262,6 +291,27 @@ tetrahedron = Polyhedron(
 )
 
 
+octahedron = Polyhedron(
+    vertex_positions = [
+        (-1, 0, 0),
+        (0, -1, 0),
+        (0, 0, -1),
+        (1, 0, 0),
+        (0, 1, 0),
+        (0, 0, 1),
+    ],
+    triangles = [
+        [0, 2, 1],
+        [0, 4, 2],
+        [0, 1, 5],
+        [0, 5, 4],
+        [3, 1, 2],
+        [3, 5, 1],
+        [3, 2, 4],
+        [3, 4, 5],
+    ],
+)
+
 cube = Polyhedron(
     vertex_positions = [
         (-1, -1, -1),
@@ -274,24 +324,18 @@ cube = Polyhedron(
         (1, 1, 1),
     ],
     triangles = [
-        # front (x == 1)
-        [4, 6, 7],
-        [7, 5, 4],
-        # back (x == -1)
         [1, 3, 2],
-        [2, 0, 1],
-        # up (z == 1)
-        [1, 5, 7],
-        [7, 3, 1],
-        # down (z == -1)
-        [2, 6, 4],
-        [4, 0, 2],
-        # left (y == -1)
         [1, 0, 4],
-        [4, 5, 1],
-        # right (y == 1)
+        [1, 5, 7],
+        [2, 0, 1],
+        [2, 6, 4],
         [2, 3, 7],
+        [4, 5, 1],
+        [4, 0, 2],
+        [4, 6, 7],
+        [7, 3, 1],
         [7, 6, 2],
+        [7, 5, 4],
     ],
 )
 
@@ -316,26 +360,61 @@ class TestPointInPolyhedron(unittest.TestCase):
         # which all the containment calculations are
         # exact).
 
+        def inside(point):
+            x, y, z = point
+            return -1 < x < 1 and -1 < y < 1 and -1 < z < 1
+
+        def outside(point):
+            x, y, z = point
+            return x < -1 or x > 1 or y < -1 or y > 1 or z < -1 or z > 1
+
         # Quarter-integer boundaries from -1.25 to 1.25 inclusive.
         xs = ys = zs = [0.25 * v for v in range(-5, 6)]
         for x in xs:
             for y in ys:
                 for z in zs:
-                    # Figure out expected result.
                     point = (x, y, z)
-                    if -1 < x < 1 and -1 < y < 1 and -1 < z < 1:
-                        # Point is inside.
-                        self.assertEqual(
-                            cube.winding_number(point), 1)
-                    elif x < -1 or x > 1 or y < -1 or y > 1 or z < -1 or z > 1:
-                        # Point is outside
-                        self.assertEqual(
-                            cube.winding_number(point), 0)
+                    if inside(point):
+                        self.assertEqual(cube.winding_number(point), 1)
+                    elif outside(point):
+                        self.assertEqual(cube.winding_number(point), 0)
                     else:
-                        # Point is on the boundary: on a vertex, edge or face.
-                        # We should get an exception.
+                        # Point is on the boundary.
                         with self.assertRaises(ValueError):
                             cube.winding_number(point)
+
+    def test_octahedron(self):
+        origin = (0, 0, 0)
+        self.assertEqual(octahedron.winding_number(origin), 1)
+
+        # More substantial test, testing a selection of points.
+        # Note that we're using floats, but restricting to
+        # values that are exactly representable (and for
+        # which all the containment calculations are
+        # exact).
+
+        def inside(point):
+            x, y, z = point
+            return abs(x) + abs(y) + abs(z) < 1
+
+        def outside(point):
+            x, y, z = point
+            return abs(x) + abs(y) + abs(z) > 1
+
+        # Quarter-integer boundaries from -1.25 to 1.25 inclusive.
+        xs = ys = zs = [0.25 * v for v in range(-5, 6)]
+        for x in xs:
+            for y in ys:
+                for z in zs:
+                    point = (x, y, z)
+                    if inside(point):
+                        self.assertEqual(octahedron.winding_number(point), 1)
+                    elif outside(point):
+                        self.assertEqual(octahedron.winding_number(point), 0)
+                    else:
+                        # Point is on the boundary.
+                        with self.assertRaises(ValueError):
+                            octahedron.winding_number(point)
 
     def test_classify_edge(self):
         # classify edges of a cube.
