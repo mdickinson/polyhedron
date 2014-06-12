@@ -54,6 +54,8 @@ For each triangle:
 """
 import unittest
 
+import numpy
+
 
 def sign(x):
     """
@@ -61,6 +63,19 @@ def sign(x):
 
     """
     return (x > 0) - (x < 0)
+
+
+def ccw2(p1, p2, p3):
+    """
+    Determine whether the line from p1 to p2 passes to the left or right of p3.
+
+    Return 1 if p1-p2-p3 represents a counterclockwise turn,
+    -1 if p1-p2-p3 represents a clockwise turn, and 0 if the three
+    points are collinear.
+
+    """
+    det = (p2[1] - p3[1]) * (p1[0] - p3[0]) - (p2[0] - p3[0]) * (p1[1] - p3[1])
+    return sign(det)
 
 
 def ccw3(p1, p2, p3, p4):
@@ -74,9 +89,9 @@ def ccw3(p1, p2, p3, p4):
 
     """
     mat = [
-        [p1[0] - p4[0], p2[0] - p4[0], p3[0]- p4[0]],
-        [p1[1] - p4[1], p2[1] - p4[1], p3[1]- p4[1]],
-        [p1[2] - p4[2], p2[2] - p4[2], p3[2]- p4[2]],
+        [p1[0] - p4[0], p2[0] - p4[0], p3[0] - p4[0]],
+        [p1[1] - p4[1], p2[1] - p4[1], p3[1] - p4[1]],
+        [p1[2] - p4[2], p2[2] - p4[2], p3[2] - p4[2]],
     ]
     d = (
         mat[0][0] * mat[1][1] * mat[2][2] +
@@ -88,139 +103,83 @@ def ccw3(p1, p2, p3, p4):
     return sign(d)
 
 
-def ccw(p1, p2, p3):
+def vertex_chain(v1, origin):
     """
-    Return 1 if p1-p2-p3 represents a counterclockwise turn,
-    -1 if p1-p2-p3 represents a clockwise turn, and 0 if the three
-    points are collinear.
+    Map the vertex v1 to the corresponding 0-chain in cellular homology.
 
-    """
-    det = (p2[1] - p3[1]) * (p1[0] - p3[0]) - (p2[0] - p3[0]) * (p1[1] - p3[1])
-    if det == 0:
-        return 0
-    elif det > 0:
-        return 1
-    else:
-        return -1
-
-
-def classify_vertex(v1, origin):
-    """
-    Classify vertex with respect to the origin.
-
-    Returns (1, 0) for points in N, (0, 1) for points in P.
+    Return a pair (b, f) giving the integer coefficients of B and F
+    in C_0 = Z + Z.
 
     Raise ValueError if v1 == origin.
 
     """
-    if v1 == origin:
-        raise ValueError("cannot classify origin")
-    return (1, 0) if v1 < origin else (0, 1)
+    d = (sign(v1[0] - origin[0]) or
+         sign(v1[1] - origin[1]) or sign(v1[2] - origin[2]))
+    if not d:
+        raise ValueError("Vertex contains origin")
+
+    if d > 0:
+        return numpy.array((0, 1))
+    else:
+        return numpy.array((1, 0))
 
 
-def classify_edge(v1, v2, origin):
+def edge_chain(v1, v2, origin):
     """
-    Classify edge from point v1 in N to point v2 in P,
-    relative to the origin.
+    Map the edge v1-v2 to the corresponding 1-chain in cellular homology.
 
     Return a pair (l, r) giving the integer coefficients of L
-    and R in the result.
+    and R in C_1 = Z + Z.
+
+    Raise ValueError if the edge goes through the origin.
 
     """
-    if v2 < origin < v1:
-        x, y = classify_edge(v2, v1, origin)
-        return -x, -y
+    boundary = vertex_chain(v2, origin) - vertex_chain(v1, origin)
 
-    if not v1 < origin < v2:
-        raise ValueError("edge not between N and P")
+    assert boundary[0] == -boundary[1]
+    if not boundary[0]:
+        return numpy.array((0, 0))
 
-    # CCW rule ignoring 3rd coordinate.
-    y = (v2[0] - origin[0]) * (v1[1] - origin[1]) - (v2[1] - origin[1]) * (v1[0] - origin[0]) 
-    if y > 0:
-        return (0, -1)
-    elif y < 0:
-        return (1, 0)
+    d = ccw2(v1, v2, origin)
+    if d == 0:
+        if v1[0] != v2[0]:
+            d = ccw2((v1[0], v1[2]), (v2[0], v2[2]), (origin[0], origin[2]))
+        else:
+            d = ccw2((v1[1], v1[2]), (v2[1], v2[2]), (origin[1], origin[2]))
+    if not d:
+        raise ValueError("Edge contains origin")
 
-    # Case where v1, v2 and origin are collinear in x-y plane, so
-    # Find z-coordinate of point of intersection.
-
-    # Note that it's not possible for v1 and v2 to both lie on the z-axis,
-    # since then the edge would pass through the origin.
-
-    # Let's assume x-coordinates are distinct.
-    if v1[0] < v2[0]:
-        z = (v2[0] - origin[0]) * (v1[2] - origin[2]) - (v2[2] - origin[2]) * (v1[0] - origin[0])
+    if d * boundary[1] > 0:
+        return numpy.array((d, 0))
     else:
-        z = (v2[1] - origin[1]) * (v1[2] - origin[2]) - (v2[2] - origin[2]) * (v1[1] - origin[1])
-
-    if z > 0:
-        return (0, -1)
-    elif z < 0:
-        return (1, 0)
-    else:
-        raise ValueError("edge through origin")
+        return numpy.array((0, d))
 
 
-def classify_triangle(v1, v2, v3, origin):
-    """Classify triangle, assuming that v1-v2-v3-v1 gives a cycle in the 1-complex.
+def face_chain(v1, v2, v3, origin):
+    """
+    Map the triangle v1-v2-v3 to the corresponding 2-chain in cellular
+    homology.
 
-    Assume that the cycle v1-v2-v3-v1 maps to L+R, which implies in turn that
-    v1, v2 and v3 are non-collinear, and that the point of intersection exists
-    and is unique.
+    Return result as a pair (d, u) giving coefficients
+    of D and U in C_2 = Z + Z.
 
     """
-    # Figure out whether the plane containing v1, v2 and v3
-    # lies above the origin (in the sense of the z-axis) or not.
+    face_boundary = sum(
+        edge_chain(start, end, origin)
+        for start, end in [(v1, v2), (v2, v3), (v3, v1)])
 
-    # Equation of plane: (r - origin) . n = d, where:
-    #
-    #   normal n = (v2 - v1) x (v3 - v1)
-    #          d = (v2 - v1) x (v3 - v1) . (v1 - origin)
-    #
-    # We only need the z-component of the normal.
-    #
-    # Now find t such that r = origin + t * k satisfies the equation:
-    #
-    #    (t * k) . n = d
-    #
-    # that is, 
-    #
-    #    t * nz = d
-    #
-    # Thus the sign of t matches that of nz * d, provided that nz * d is nonzero.
-    #
-    # d is zero iff the face contains the origin; in this case, raise
-    # an exception.
-    #
-    # If nz == 0 then the triangle is vertical.  This means that the entire
-    # edge cycle projects down onto a line-segment.  The only way that this line can
-    # be a nontrivial cycle is if the face contains the origin, and in that
-    # case d will also be zero.
-
-    # XXX Computing nz is redundant: we already have the classification
-    # of the edge cycle.
-
-    nz = (v2[0] - v1[0]) * (v3[1] - v1[1]) - (v2[1] - v1[1]) * (v3[0] - v1[0])
-    nz = sign(nz)
-    # d is the determinant of the 3x3 matrix |v1-origin v2-origin v3-origin|,
-    # or equivalently, of the 4x4 matrix
-    #
-    #   |v1 v2 v3 origin|
-    #   | 1  1  1   1   |
+    assert face_boundary[0] == face_boundary[1]
+    if not face_boundary[0]:
+        return numpy.array((0, 0))
 
     d = ccw3(v1, v2, v3, origin)
     if not d:
         raise ValueError("Face contains origin")
 
-    assert nz
-
-    t_sign = d * nz
-    if t_sign == 0:
-        raise ValueError("Face contains origin")
-    elif t_sign > 0:
-        return (0, 1)
+    if d * face_boundary[0] > 0:
+        return numpy.array((0, d))
     else:
-        return (-1, 0)
+        return numpy.array((d, 0))
 
 
 class Polyhedron(object):
@@ -231,6 +190,14 @@ class Polyhedron(object):
         # around the outside of the face.
         self.triangles = triangles
 
+    def triangle_positions(self):
+        """
+        Triples of vertex positions.
+
+        """
+        for triangle in self.triangles:
+            yield tuple(self.vertex_positions[vx] for vx in triangle)
+
     def winding_number(self, point):
         """Determine whether the given point is inside the polyhedron.
 
@@ -238,37 +205,9 @@ class Polyhedron(object):
         the point.
 
         """
-        face_contributions = []
-        for triangle in self.triangles:
-            # Classify positions.  If all 3 lie in the same half-space,
-            # there's nothing of interest.
-            v1, v2, v3 = [self.vertex_positions[v] for v in triangle]
-            p1, p2, p3 = [classify_vertex(self.vertex_positions[v], point) for v in triangle]
-
-            # Now classify edges from N to P (or P to N).
-            edge_classifications = []
-
-            pairs = [(v1, v2), (v2, v3), (v3, v1)]
-            cpairs = [(p1, p2), (p2, p3), (p3, p1)]
-            for pair, cpair in zip(pairs, cpairs):
-                c1, c2 = cpair
-                if c1 == c2:
-                    continue
-                vx1, vx2 = pair
-                ec = classify_edge(vx1, vx2, point)
-                edge_classifications.append(ec)
-
-            total_edge = sum(e[0] for e in edge_classifications), sum(e[1] for e in edge_classifications)
-            # Those with total_edge != (0, 0) contribute to the winding number;
-            # those with total_edge == (0, 0) do not.
-            if total_edge[0]:
-                # Now classify face: we want to know whether the plane
-                # through v1, v2 and v3 intersects the z-axis above or below the origin.
-                d, u = classify_triangle(v1, v2, v3, point)
-                d, u = total_edge[0] * d, total_edge[0] * u
-                face_contributions.append((d, u))
-
-        total_face = sum(f[0] for f in face_contributions), sum(f[1] for f in face_contributions)
+        total_face = sum(
+            face_chain(v1, v2, v3, point)
+            for v1, v2, v3 in self.triangle_positions())
         assert total_face[0] == total_face[1]
         return total_face[0]
 
@@ -276,13 +215,13 @@ class Polyhedron(object):
 # Some sample polyhedra.
 
 tetrahedron = Polyhedron(
-    vertex_positions = [
+    vertex_positions=[
         (-1, -1, -1),
         (-1, 1, 1),
         (1, -1, 1),
         (1, 1, -1),
     ],
-    triangles = [
+    triangles=[
         [0, 1, 3],
         [0, 2, 1],
         [0, 3, 2],
@@ -292,7 +231,7 @@ tetrahedron = Polyhedron(
 
 
 octahedron = Polyhedron(
-    vertex_positions = [
+    vertex_positions=[
         (-1, 0, 0),
         (0, -1, 0),
         (0, 0, -1),
@@ -300,7 +239,7 @@ octahedron = Polyhedron(
         (0, 1, 0),
         (0, 0, 1),
     ],
-    triangles = [
+    triangles=[
         [0, 2, 1],
         [0, 4, 2],
         [0, 1, 5],
@@ -313,7 +252,7 @@ octahedron = Polyhedron(
 )
 
 cube = Polyhedron(
-    vertex_positions = [
+    vertex_positions=[
         (-1, -1, -1),
         (-1, -1, 1),
         (-1, 1, -1),
@@ -323,7 +262,7 @@ cube = Polyhedron(
         (1, 1, -1),
         (1, 1, 1),
     ],
-    triangles = [
+    triangles=[
         [1, 3, 2],
         [1, 0, 4],
         [1, 5, 7],
@@ -415,83 +354,6 @@ class TestPointInPolyhedron(unittest.TestCase):
                         # Point is on the boundary.
                         with self.assertRaises(ValueError):
                             octahedron.winding_number(point)
-
-    def test_classify_edge(self):
-        # classify edges of a cube.
-        origin = (0, 0, 0)
-        # vertices: v1, v3, v5, v7 lie in N, the others in P.
-        v1 = (-1, -1, -1)
-        v2 = (1, -1, -1)
-        v3 = (-1, 1, -1)
-        v4 = (1, 1, -1)
-        v5 = (-1, -1, 1)
-        v6 = (1, -1, 1)
-        v7 = (-1, 1, 1)
-        v8 = (1, 1, 1)
-
-        # Some midpoints.
-        m12 = (0, -1, -1)  # in N
-        m34 = (0, 1, -1)  # in P
-        m56 = (0, -1, 1)  # in N
-        m78 = (0, 1, 1)  # in P
-
-        # Edges from N to P.
-        self.assertEqual(classify_edge(v1, v2, origin), (1, 0))
-        self.assertEqual(classify_edge(v3, v4, origin), (0, -1))
-        self.assertEqual(classify_edge(v5, v6, origin), (1, 0))
-        self.assertEqual(classify_edge(v7, v8, origin), (0, -1))
-        # Edges from P to N.
-        self.assertEqual(classify_edge(v2, v1, origin), (-1, 0))
-        self.assertEqual(classify_edge(v4, v3, origin), (0, 1))
-        self.assertEqual(classify_edge(v6, v5, origin), (-1, 0))
-        self.assertEqual(classify_edge(v8, v7, origin), (0, 1))
-
-        # Edges from N to N or P to P should raise.
-        vn = [v1, v3, v5, v7]
-        vp = [v2, v4, v6, v8]
-        for start in vn:
-            for end in vn:
-                with self.assertRaises(ValueError):
-                    classify_edge(start, end, origin)
-        for start in vp:
-            for end in vp:
-                with self.assertRaises(ValueError):
-                    classify_edge(start, end, origin)
-
-        # Some face diagonals.
-        # Line segment from v1 (in N) to v4 (in P) should map
-        # to either (1, 0) or (0, -1).  The projection to the x-y plane
-        # goes through the origin, so the first CCW test is inconclusive.
-        self.assertEqual(classify_edge(v1, v4, origin), (1, 0))
-        self.assertEqual(classify_edge(v4, v1, origin), (-1, 0))
-
-        # Line segment from v3 (in N) to v2 (in P) should do the same.
-        self.assertEqual(classify_edge(v3, v2, origin), (1, 0))
-        self.assertEqual(classify_edge(v2, v3, origin), (-1, 0))
-
-        # and same through the positive part of z-axis.
-        self.assertEqual(classify_edge(v5, v8, origin), (0, -1))
-        self.assertEqual(classify_edge(v8, v5, origin), (0, 1))
-        self.assertEqual(classify_edge(v7, v6, origin), (0, -1))
-        self.assertEqual(classify_edge(v6, v7, origin), (0, 1))
-
-        # Troublesome edges, going through the origin after projection
-        # to the x-y plane.  Classification depends on the point
-        # at which the edge intersects the z-axis.
-        self.assertEqual(classify_edge(m12, m34, origin), (1, 0))
-        self.assertEqual(classify_edge(m34, m12, origin), (-1, 0))
-        self.assertEqual(classify_edge(m56, m78, origin), (0, -1))
-        self.assertEqual(classify_edge(m78, m56, origin), (0, 1))
-
-        # Body diagonals should raise
-        with self.assertRaises(ValueError):
-            classify_edge(v1, v8, origin)
-        with self.assertRaises(ValueError):
-            classify_edge(v2, v7, origin)
-        with self.assertRaises(ValueError):
-            classify_edge(v3, v6, origin)
-        with self.assertRaises(ValueError):
-            classify_edge(v4, v5, origin)
 
 
 if __name__ == '__main__':
