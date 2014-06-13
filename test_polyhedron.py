@@ -59,12 +59,13 @@ from polyhedron import Polyhedron
 
 # Some sample polyhedra.
 
+# Regular tetrahedron.
 tetrahedron = Polyhedron(
     vertex_positions=[
-        (-1, -1, -1),
-        (-1, 1, 1),
-        (1, -1, 1),
-        (1, 1, -1),
+        (0, 0, 0),
+        (0, 1, 1),
+        (1, 0, 1),
+        (1, 1, 0),
     ],
     triangles=[
         [0, 1, 3],
@@ -73,6 +74,16 @@ tetrahedron = Polyhedron(
         [1, 2, 3],
     ],
 )
+
+
+def tetrahedron_classify(point):
+    x, y, z = point
+    if x + y + z < 2 and x + y > z and x + z > y and y + z > x:
+        return "inside"
+    if x + y + z <= 2 and x + y >= z and x + z >= y and y + z >= x:
+        return "boundary"
+    return "outside"
+
 
 # Regular octahedron, with vertices on the axes.
 octahedron = Polyhedron(
@@ -167,13 +178,20 @@ torus = Polyhedron(
 
 class TestPolyhedron(unittest.TestCase):
     def test_tetrahedron(self):
-        point = (0, 0, 0)
-        poly = tetrahedron
-        self.assertEqual(poly.winding_number(point), 1)
-
-        point2 = (1, 1, 1)
-        poly = tetrahedron
-        self.assertEqual(poly.winding_number(point2), 0)
+        xs = ys = zs = [0.25 * v for v in range(-1, 6)]
+        points = [(x, y, z) for x in xs for y in ys for z in zs]
+        for point in points:
+            class_ = tetrahedron_classify(point)
+            if class_ == "inside":
+                self.assertEqual(tetrahedron.winding_number(point), 1)
+            elif class_ == "outside":
+                self.assertEqual(tetrahedron.winding_number(point), 0)
+            elif class_ == "boundary":
+                # Point is on the boundary.
+                with self.assertRaises(ValueError):
+                    tetrahedron.winding_number(point)
+            else:
+                assert False, "should never get here"
 
     def test_cube(self):
         # Check volume
