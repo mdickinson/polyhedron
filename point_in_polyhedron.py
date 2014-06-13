@@ -211,53 +211,66 @@ tetrahedron = Polyhedron(
     ],
 )
 
-
+# Regular octahedron, with vertices on the axes.
 octahedron = Polyhedron(
     vertex_positions=[
-        (-1, 0, 0),
-        (0, -1, 0),
-        (0, 0, -1),
-        (1, 0, 0),
-        (0, 1, 0),
-        (0, 0, 1),
+        (-1, 0, 0), (0, -1, 0), (0, 0, -1),
+        (1, 0, 0), (0, 1, 0), (0, 0, 1),
     ],
     triangles=[
-        [0, 2, 1],
-        [0, 4, 2],
-        [0, 1, 5],
-        [0, 5, 4],
-        [3, 1, 2],
-        [3, 5, 1],
-        [3, 2, 4],
-        [3, 4, 5],
+        [0, 2, 1], [0, 4, 2], [0, 1, 5], [0, 5, 4],
+        [3, 1, 2], [3, 5, 1], [3, 2, 4], [3, 4, 5],
     ],
 )
 
+# Cube with vertices at (+-1, +-1, +-1).
 cube = Polyhedron(
     vertex_positions=[
-        (-1, -1, -1),
-        (-1, -1, 1),
-        (-1, 1, -1),
-        (-1, 1, 1),
-        (1, -1, -1),
-        (1, -1, 1),
-        (1, 1, -1),
-        (1, 1, 1),
+        (-1, -1, -1), (-1, -1, +1), (-1, +1, -1), (-1, +1, +1),
+        (+1, -1, -1), (+1, -1, +1), (+1, +1, -1), (+1, +1, +1),
     ],
     triangles=[
-        [1, 3, 2],
-        [1, 0, 4],
-        [1, 5, 7],
-        [2, 0, 1],
-        [2, 6, 4],
-        [2, 3, 7],
-        [4, 5, 1],
-        [4, 0, 2],
-        [4, 6, 7],
-        [7, 3, 1],
-        [7, 6, 2],
-        [7, 5, 4],
+        [1, 3, 2], [1, 0, 4], [1, 5, 7],
+        [2, 0, 1], [2, 6, 4], [2, 3, 7],
+        [4, 5, 1], [4, 0, 2], [4, 6, 7],
+        [7, 3, 1], [7, 6, 2], [7, 5, 4],
     ],
+)
+
+# Pair of cubes, sharing a common vertex at the origin.
+pair_of_cubes = Polyhedron(
+    vertex_positions=[
+        (-1, -1, -1), (-1, -1, 0), (-1, 0, -1), (-1, 0, 0),
+        (0, -1, -1), (0, -1, 0), (0, 0, -1), (0, 0, 0),
+        (0, 0, 1), (0, 1, 0), (0, 1, 1),
+        (1, 0, 0), (1, 0, 1), (1, 1, 0), (1, 1, 1),
+    ],
+    triangles=[
+        [1, 3, 2], [1, 0, 4], [1, 5, 7],
+        [2, 0, 1], [2, 6, 4], [2, 3, 7],
+        [4, 5, 1], [4, 0, 2], [4, 6, 7],
+        [7, 3, 1], [7, 6, 2], [7, 5, 4],
+        [8, 10, 9], [8, 7, 11], [8, 12, 14],
+        [9, 7, 8], [9, 13, 11], [9, 10, 14],
+        [11, 12, 8], [11, 7, 9], [11, 13, 14],
+        [14, 10, 8], [14, 13, 9], [14, 12, 11],
+    ],
+)
+
+# Hollow cube: surface consists of two cubes, one facing outwards
+# and one facing inwards.
+hollow_cube = Polyhedron(
+    vertex_positions=[
+        (0, 0, 0), (0, 0, 3), (0, 3, 0), (0, 3, 3),
+        (3, 0, 0), (3, 0, 3), (3, 3, 0), (3, 3, 3),
+        (1, 1, 1), (1, 1, 2), (1, 2, 1), (1, 2, 2),
+        (2, 1, 1), (2, 1, 2), (2, 2, 1), (2, 2, 2),
+    ],
+    triangles = (
+        # Outer cube.
+        cube.triangles +
+        # Inner cube: reverse orientation.
+        [[z+8, y+8, x+8] for x, y, z in cube.triangles]),
 )
 
 
@@ -272,70 +285,84 @@ class TestPointInPolyhedron(unittest.TestCase):
         self.assertEqual(poly.winding_number(point2), 0)
 
     def test_cube(self):
-        origin = (0, 0, 0)
-        self.assertEqual(cube.winding_number(origin), 1)
-
-        # More substantial test, testing a selection of points.
-        # Note that we're using floats, but restricting to
-        # values that are exactly representable (and for
-        # which all the containment calculations are
-        # exact).
-
-        def inside(point):
+        def classify(point):
             x, y, z = point
-            return -1 < x < 1 and -1 < y < 1 and -1 < z < 1
-
-        def outside(point):
-            x, y, z = point
-            return x < -1 or x > 1 or y < -1 or y > 1 or z < -1 or z > 1
+            if -1 < x < 1 and -1 < y < 1 and -1 < z < 1:
+                return "inside"
+            if -1 <= x <= 1 and -1 <= y <= 1 and -1 <= z <= 1:
+                return "boundary"
+            return "outside"
 
         # Quarter-integer boundaries from -1.25 to 1.25 inclusive.
         xs = ys = zs = [0.25 * v for v in range(-5, 6)]
-        for x in xs:
-            for y in ys:
-                for z in zs:
-                    point = (x, y, z)
-                    if inside(point):
-                        self.assertEqual(cube.winding_number(point), 1)
-                    elif outside(point):
-                        self.assertEqual(cube.winding_number(point), 0)
-                    else:
-                        # Point is on the boundary.
-                        with self.assertRaises(ValueError):
-                            cube.winding_number(point)
+        points = [(x, y, z) for x in xs for y in ys for z in zs]
+        for point in points:
+            class_ = classify(point)
+            if class_ == "inside":
+                self.assertEqual(cube.winding_number(point), 1)
+            elif class_ == "outside":
+                self.assertEqual(cube.winding_number(point), 0)
+            elif class_ == "boundary":
+                # Point is on the boundary.
+                with self.assertRaises(ValueError):
+                    cube.winding_number(point)
+            else:
+                assert False, "should never get here"
 
     def test_octahedron(self):
-        origin = (0, 0, 0)
-        self.assertEqual(octahedron.winding_number(origin), 1)
-
-        # More substantial test, testing a selection of points.
-        # Note that we're using floats, but restricting to
-        # values that are exactly representable (and for
-        # which all the containment calculations are
-        # exact).
-
-        def inside(point):
+        def classify(point):
             x, y, z = point
-            return abs(x) + abs(y) + abs(z) < 1
-
-        def outside(point):
-            x, y, z = point
-            return abs(x) + abs(y) + abs(z) > 1
+            s = abs(x) + abs(y) + abs(z)
+            if s < 1:
+                return "inside"
+            elif s == 1:
+                return "boundary"
+            else:
+                return "outside"
 
         # Quarter-integer boundaries from -1.25 to 1.25 inclusive.
         xs = ys = zs = [0.25 * v for v in range(-5, 6)]
-        for x in xs:
-            for y in ys:
-                for z in zs:
-                    point = (x, y, z)
-                    if inside(point):
-                        self.assertEqual(octahedron.winding_number(point), 1)
-                    elif outside(point):
-                        self.assertEqual(octahedron.winding_number(point), 0)
-                    else:
-                        # Point is on the boundary.
-                        with self.assertRaises(ValueError):
-                            octahedron.winding_number(point)
+        points = [(x, y, z) for x in xs for y in ys for z in zs]
+        for point in points:
+            class_ = classify(point)
+            if class_ == "inside":
+                self.assertEqual(octahedron.winding_number(point), 1)
+            elif class_ == "outside":
+                self.assertEqual(octahedron.winding_number(point), 0)
+            elif class_ == "boundary":
+                # Point is on the boundary.
+                with self.assertRaises(ValueError):
+                    octahedron.winding_number(point)
+            else:
+                assert False, "never get here"
+
+    def test_pair_of_cubes(self):
+        def classify(point):
+            x, y, z = point
+            if -1 < x < 0 and -1 < y < 0 and -1 < z < 0:
+                return "inside"
+            if 0 < x < 1 and 0 < y < 1 and 0 < z < 1:
+                return "inside"
+            if -1 <= x <= 0 and -1 <= y <= 0 and -1 <= z <= 0:
+                return "boundary"
+            if 0 <= x <= 1 and 0 <= y <= 1 and 0 <= z <= 1:
+                return "boundary"
+            return "outside"
+
+        # Quarter-integer boundaries from -1.25 to 1.25 inclusive.
+        xs = ys = zs = [0.25 * v for v in range(-5, 6)]
+        points = [(x, y, z) for x in xs for y in ys for z in zs]
+        for point in points:
+            class_ = classify(point)
+            if class_ == "inside":
+                self.assertEqual(pair_of_cubes.winding_number(point), 1)
+            elif class_ == "boundary":
+                with self.assertRaises(ValueError):
+                    pair_of_cubes.winding_number(point)
+            elif class_ == "outside":
+                self.assertEqual(pair_of_cubes.winding_number(point), 0)
+            else:
+                assert False, "never get here"
 
 
 if __name__ == '__main__':
