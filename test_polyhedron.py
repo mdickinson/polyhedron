@@ -54,144 +54,7 @@ For each triangle:
 """
 import unittest
 
-
-def sign(x):
-    """
-    Return 1 if x is positive, -1 if it's negative, and 0 if it's zero.
-
-    """
-    return (x > 0) - (x < 0)
-
-
-def ccw2(p1, p2, p3):
-    """
-    Determine whether the line from p1 to p2 passes to the left or right of p3.
-
-    Return 1 if p1-p2-p3 represents a counterclockwise turn,
-    -1 if p1-p2-p3 represents a clockwise turn, and 0 if the three
-    points are collinear.
-
-    """
-    det = (p2[1] - p3[1]) * (p1[0] - p3[0]) - (p2[0] - p3[0]) * (p1[1] - p3[1])
-    return sign(det)
-
-
-def ccw3(p1, p2, p3, p4):
-    """
-    Determine whether the counterclockwise triangle p1-p2-p3
-    has normal pointing away or towards p4.
-
-    Return 1 if the normal points away from p4, -1 if
-    it points towards p4, and 0 if p4 is *contained*
-    in the plane of the triangle p1-p2-p3.
-
-    """
-    mat = [
-        [p1[0] - p4[0], p2[0] - p4[0], p3[0] - p4[0]],
-        [p1[1] - p4[1], p2[1] - p4[1], p3[1] - p4[1]],
-        [p1[2] - p4[2], p2[2] - p4[2], p3[2] - p4[2]],
-    ]
-    d = (
-        mat[0][0] * mat[1][1] * mat[2][2] +
-        mat[0][1] * mat[1][2] * mat[2][0] +
-        mat[0][2] * mat[1][0] * mat[2][1] -
-        mat[0][0] * mat[1][2] * mat[2][1] -
-        mat[0][1] * mat[1][0] * mat[2][2] -
-        mat[0][2] * mat[1][1] * mat[2][0])
-    return sign(d)
-
-
-def vertex_chain(v1, origin):
-    """
-    Map the vertex v1 to the corresponding 0-chain in cellular homology.
-
-    Return coefficient of B in C_0 = Z + Z.
-
-    Raise ValueError if v1 == origin.
-
-    """
-    d = (sign(v1[0] - origin[0]) or
-         sign(v1[1] - origin[1]) or sign(v1[2] - origin[2]))
-    if not d:
-        raise ValueError("Vertex contains origin")
-    return 0 if d > 0 else 1
-
-
-def edge_chain(v1, v2, origin):
-    """
-    Map the edge v1-v2 to the corresponding 1-chain in cellular homology.
-
-    Return coefficient of L in C_1 = Z + Z.
-
-    Raise ValueError if the edge goes through the origin.
-
-    """
-    edge_boundary = vertex_chain(v2, origin) - vertex_chain(v1, origin)
-    if not edge_boundary:
-        return 0
-
-    d = ccw2(v1, v2, origin)
-    if d == 0:
-        if v1[0] != v2[0]:
-            d = ccw2((v1[0], v1[2]), (v2[0], v2[2]), (origin[0], origin[2]))
-        else:
-            d = ccw2((v1[1], v1[2]), (v2[1], v2[2]), (origin[1], origin[2]))
-    if not d:
-        raise ValueError("Edge contains origin")
-
-    return 0 if d * edge_boundary > 0 else d
-
-
-def face_chain(v1, v2, v3, origin):
-    """
-    Map the triangle v1-v2-v3 to the corresponding 2-chain in cellular
-    homology.
-
-    Return coefficient of D in the result.
-
-    Raise ValueError if the face contains the origin.
-
-    """
-    face_boundary = sum(
-        edge_chain(start, end, origin)
-        for start, end in [(v1, v2), (v2, v3), (v3, v1)])
-
-    if not face_boundary:
-        return 0
-
-    d = ccw3(v1, v2, v3, origin)
-    if not d:
-        raise ValueError("Face contains origin")
-
-    return 0 if d * face_boundary > 0 else d
-
-
-class Polyhedron(object):
-    def __init__(self, triangles, vertex_positions):
-        # vertex positions in R^3.
-        self.vertex_positions = vertex_positions
-        # Indices making up each triangle, counterclockwise
-        # around the outside of the face.
-        self.triangles = triangles
-
-    def triangle_positions(self):
-        """
-        Triples of vertex positions.
-
-        """
-        for triangle in self.triangles:
-            yield tuple(self.vertex_positions[vx] for vx in triangle)
-
-    def winding_number(self, point):
-        """Determine whether the given point is inside the polyhedron.
-
-        More precisely, determine the winding number of the polyhedron around
-        the point.
-
-        """
-        return sum(
-            face_chain(v1, v2, v3, point)
-            for v1, v2, v3 in self.triangle_positions())
+from polyhedron import Polyhedron
 
 
 # Some sample polyhedra.
@@ -266,15 +129,43 @@ hollow_cube = Polyhedron(
         (1, 1, 1), (1, 1, 2), (1, 2, 1), (1, 2, 2),
         (2, 1, 1), (2, 1, 2), (2, 2, 1), (2, 2, 2),
     ],
-    triangles = (
+    triangles=(
         # Outer cube.
         cube.triangles +
         # Inner cube: reverse orientation.
         [[z+8, y+8, x+8] for x, y, z in cube.triangles]),
 )
 
+# Torus.
+torus = Polyhedron(
+    vertex_positions=[
+        # Outer square, bottom face.
+        (0, 0, 0), (0, 3, 0), (3, 0, 0), (3, 3, 0),
+        # Inner square, bottom face.
+        (1, 1, 0), (1, 2, 0), (2, 1, 0), (2, 2, 0),
+        # Outer square, top face.
+        (0, 0, 1), (0, 3, 1), (3, 0, 1), (3, 3, 1),
+        # Inner square, top face.
+        (1, 1, 1), (1, 2, 1), (2, 1, 1), (2, 2, 1),
+    ],
+    triangles=[
+        # Top face.
+        [8, 14, 12], [14, 8, 10], [10, 15, 14], [15, 10, 11],
+        [11, 13, 15], [13, 11, 9], [9, 12, 13], [12, 9, 8],
+        # Bottom face.
+        [4, 6, 0], [2, 0, 6], [6, 7, 2], [3, 2, 7],
+        [7, 5, 3], [1, 3, 5], [5, 4, 1], [0, 1, 4],
+        # Outer faces.
+        [0, 2, 10], [10, 8, 0], [2, 3, 11], [11, 10, 2],
+        [3, 1, 9], [9, 11, 3], [1, 0, 8], [8, 9, 1],
+        # Inner faces.
+        [4, 12, 14], [14, 6, 4], [6, 14, 15], [15, 7, 6],
+        [7, 15, 13], [13, 5, 7], [5, 13, 12], [12, 4, 5],
+    ],
+)
 
-class TestPointInPolyhedron(unittest.TestCase):
+
+class TestPolyhedron(unittest.TestCase):
     def test_tetrahedron(self):
         point = (0, 0, 0)
         poly = tetrahedron
@@ -285,6 +176,9 @@ class TestPointInPolyhedron(unittest.TestCase):
         self.assertEqual(poly.winding_number(point2), 0)
 
     def test_cube(self):
+        # Check volume
+        self.assertEqual(cube.volume(), 8)
+
         def classify(point):
             x, y, z = point
             if -1 < x < 1 and -1 < y < 1 and -1 < z < 1:
@@ -310,6 +204,8 @@ class TestPointInPolyhedron(unittest.TestCase):
                 assert False, "should never get here"
 
     def test_octahedron(self):
+        self.assertEqual(octahedron.volume(), 4.0 / 3.0)
+
         def classify(point):
             x, y, z = point
             s = abs(x) + abs(y) + abs(z)
@@ -337,6 +233,8 @@ class TestPointInPolyhedron(unittest.TestCase):
                 assert False, "never get here"
 
     def test_pair_of_cubes(self):
+        self.assertEqual(pair_of_cubes.volume(), 2.0)
+
         def classify(point):
             x, y, z = point
             if -1 < x < 0 and -1 < y < 0 and -1 < z < 0:
@@ -361,6 +259,65 @@ class TestPointInPolyhedron(unittest.TestCase):
                     pair_of_cubes.winding_number(point)
             elif class_ == "outside":
                 self.assertEqual(pair_of_cubes.winding_number(point), 0)
+            else:
+                assert False, "never get here"
+
+    def test_hollow_cube(self):
+        self.assertEqual(hollow_cube.volume(), 26.0)
+
+        def classify(point):
+            x, y, z = point
+            if 1 < x < 2 and 1 < y < 2 and 1 < z < 2:
+                return "outside"
+            if 1 <= x <= 2 and 1 <= y <= 2 and 1 <= z <= 2:
+                return "boundary"
+            if 0 < x < 3 and 0 < y < 3 and 0 < z < 3:
+                return "inside"
+            if 0 <= x <= 3 and 0 <= y <= 3 and 0 <= z <= 3:
+                return "boundary"
+            return "outside"
+
+        xs = ys = zs = [0.25 * v for v in range(-1, 14)]
+        points = [(x, y, z) for x in xs for y in ys for z in zs]
+        for point in points:
+            class_ = classify(point)
+            if class_ == "inside":
+                self.assertEqual(hollow_cube.winding_number(point), 1)
+            elif class_ == "boundary":
+                with self.assertRaises(ValueError):
+                    hollow_cube.winding_number(point)
+            elif class_ == "outside":
+                self.assertEqual(hollow_cube.winding_number(point), 0)
+            else:
+                assert False, "never get here"
+
+    def test_torus(self):
+        self.assertEqual(torus.volume(), 8.0)
+
+        def classify(point):
+            x, y, z = point
+            if 0 < z < 1 and (0 < x < 1 or 2 < x < 3) and 0 < y < 3:
+                return "inside"
+            if 0 < z < 1 and (0 < y < 1 or 2 < y < 3) and 0 < x < 3:
+                return "inside"
+            if 0 <= z <= 1 and (0 <= x <= 1 or 2 <= x <= 3) and 0 <= y <= 3:
+                return "boundary"
+            if 0 <= z <= 1 and (0 <= y <= 1 or 2 <= y <= 3) and 0 <= x <= 3:
+                return "boundary"
+            return "outside"
+
+        xs = ys = [0.25 * v for v in range(-1, 14)]
+        zs = [0.25 * v for v in range(-1, 6)]
+        points = [(x, y, z) for x in xs for y in ys for z in zs]
+        for point in points:
+            class_ = classify(point)
+            if class_ == "inside":
+                self.assertEqual(torus.winding_number(point), 1)
+            elif class_ == "boundary":
+                with self.assertRaises(ValueError):
+                    torus.winding_number(point)
+            elif class_ == "outside":
+                self.assertEqual(torus.winding_number(point), 0)
             else:
                 assert False, "never get here"
 
