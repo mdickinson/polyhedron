@@ -79,12 +79,9 @@ def edge_chain(v1, v2, origin):
     if not edge_boundary:
         return 0
 
-    d = ccw2(v1, v2, origin)
-    if d == 0:
-        if v1[0] != v2[0]:
-            d = ccw2((v1[0], v1[2]), (v2[0], v2[2]), (origin[0], origin[2]))
-        else:
-            d = ccw2((v1[1], v1[2]), (v2[1], v2[2]), (origin[1], origin[2]))
+    d = (ccw2(v1, v2, origin) or
+         ccw2((v1[0], v1[2]), (v2[0], v2[2]), (origin[0], origin[2])) or
+         ccw2((v1[1], v1[2]), (v2[1], v2[2]), (origin[1], origin[2])))
     if not d:
         raise ValueError("Edge contains origin")
 
