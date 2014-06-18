@@ -48,7 +48,7 @@ def edge_sign(v1, v2, origin):
     return d
 
 
-def face_sign(p1, p2, p3, p4):
+def triangle_sign(p1, p2, p3, p4):
     """
     Determine whether the counterclockwise triangle p1-p2-p3
     has normal pointing away or towards p4.
@@ -80,7 +80,7 @@ def vertex_chain(v1, origin):
     """
     Map the vertex v1 to the corresponding 0-chain in cellular homology.
 
-    Return coefficient of B in C_0 = Z + Z.
+    Return coefficient of [F] in C_0.
 
     Raise ValueError if v1 == origin.
 
@@ -88,14 +88,15 @@ def vertex_chain(v1, origin):
     d = vertex_sign(v1, origin)
     if not d:
         raise ValueError("Vertex contains origin")
-    return 0 if d > 0 else 1
+    # [F] if d > 0, else [B].
+    return 1 if d > 0 else 0
 
 
 def edge_chain(v1, v2, origin):
     """
     Map the edge v1-v2 to the corresponding 1-chain in cellular homology.
 
-    Return coefficient of L in C_1 = Z + Z.
+    Return coefficient of [R] in C_1 = Z + Z.
 
     Raise ValueError if the edge goes through the origin.
 
@@ -108,15 +109,16 @@ def edge_chain(v1, v2, origin):
     if not d:
         raise ValueError("Edge contains origin")
 
-    return 0 if d * edge_boundary > 0 else d
+    # d * [L] or d * [R], depending on sign of d * edge_boundary.
+    return d if d * edge_boundary < 0 else 0
 
 
-def face_chain(v1, v2, v3, origin):
+def triangle_chain(v1, v2, v3, origin):
     """
     Map the triangle v1-v2-v3 to the corresponding 2-chain in cellular
     homology.
 
-    Return coefficient of D in the result.
+    Return coefficient of [U] in the result.
 
     Raise ValueError if the face contains the origin.
 
@@ -128,11 +130,12 @@ def face_chain(v1, v2, v3, origin):
     if not face_boundary:
         return 0
 
-    d = face_sign(v1, v2, v3, origin)
+    d = triangle_sign(v1, v2, v3, origin)
     if not d:
         raise ValueError("Face contains origin")
 
-    return 0 if d * face_boundary > 0 else d
+    # d * [D] or d * [U], depending on sign of d * face_boundary.
+    return d if d * face_boundary > 0 else 0
 
 
 class Polyhedron(object):
@@ -174,5 +177,5 @@ class Polyhedron(object):
 
         """
         return sum(
-            face_chain(v1, v2, v3, point)
+            triangle_chain(v1, v2, v3, point)
             for v1, v2, v3 in self.triangle_positions())
