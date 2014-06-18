@@ -178,6 +178,25 @@ hollow_cube = Polyhedron(
     ),
 )
 
+# Nested cubes: surface consists of two cubes, both facing
+# outwards.  Points inside the inner cube should have a winding
+# number of 2.
+
+nested_cube = Polyhedron(
+    vertex_positions=[
+        (0, 0, 0), (0, 0, 3), (0, 3, 0), (0, 3, 3),
+        (3, 0, 0), (3, 0, 3), (3, 3, 0), (3, 3, 3),
+        (1, 1, 1), (1, 1, 2), (1, 2, 1), (1, 2, 2),
+        (2, 1, 1), (2, 1, 2), (2, 2, 1), (2, 2, 2),
+    ],
+    triangles=(
+        # Outer cube.
+        cube.triangles +
+        # Inner cube: same orientation as outer cube.
+        [[x+8, y+8, z+8] for x, y, z in cube.triangles]
+    ),
+)
+
 # Torus.
 torus = Polyhedron(
     vertex_positions=[
@@ -337,6 +356,40 @@ class TestPolyhedron(unittest.TestCase):
                     hollow_cube.winding_number(point)
             elif class_ == "outside":
                 self.assertEqual(hollow_cube.winding_number(point), 0)
+            else:
+                assert False, "never get here"
+
+    def test_nested_cube(self):
+        # To make sense of the volume, think of it as the integral
+        # of the winding number:  in effect, points inside the inner cube
+        # contribute to the volume *twice*.
+        self.assertEqual(nested_cube.volume(), 28.0)
+
+        def classify(point):
+            x, y, z = point
+            if 1 < x < 2 and 1 < y < 2 and 1 < z < 2:
+                return "doubled"
+            if 1 <= x <= 2 and 1 <= y <= 2 and 1 <= z <= 2:
+                return "boundary"
+            if 0 < x < 3 and 0 < y < 3 and 0 < z < 3:
+                return "inside"
+            if 0 <= x <= 3 and 0 <= y <= 3 and 0 <= z <= 3:
+                return "boundary"
+            return "outside"
+
+        xs = ys = zs = [0.25 * v for v in range(-1, 14)]
+        points = [(x, y, z) for x in xs for y in ys for z in zs]
+        for point in points:
+            class_ = classify(point)
+            if class_ == "inside":
+                self.assertEqual(nested_cube.winding_number(point), 1)
+            elif class_ == "boundary":
+                with self.assertRaises(ValueError):
+                    nested_cube.winding_number(point)
+            elif class_ == "outside":
+                self.assertEqual(nested_cube.winding_number(point), 0)
+            elif class_ == "doubled":
+                self.assertEqual(nested_cube.winding_number(point), 2)
             else:
                 assert False, "never get here"
 
