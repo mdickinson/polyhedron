@@ -131,6 +131,36 @@ pair_of_cubes = Polyhedron(
     ],
 )
 
+# Two stacked cuboids, one directly above the other.
+
+aligned_stacked_cuboids = Polyhedron(
+    vertex_positions=[
+        (0, 0, 0), (0, 0, 1), (0, 3, 0), (0, 3, 1),
+        (3, 0, 0), (3, 0, 1), (3, 3, 0), (3, 3, 1),
+        (0, 0, 2), (0, 0, 3), (0, 3, 2), (0, 3, 3),
+        (3, 0, 2), (3, 0, 3), (3, 3, 2), (3, 3, 3),
+    ],
+    triangles=(
+        cube.triangles +
+        [[x+8, y+8, z+8] for x, y, z in cube.triangles]
+    ),
+)
+
+# Similar, but with the cuboids misaligned.
+
+misaligned_stacked_cuboids = Polyhedron(
+    vertex_positions=[
+        (0, 0, 0), (0, 0, 1), (0, 2, 0), (0, 2, 1),
+        (2, 0, 0), (2, 0, 1), (2, 2, 0), (2, 2, 1),
+        (1, 1, 2), (1, 1, 3), (1, 3, 2), (1, 3, 3),
+        (3, 1, 2), (3, 1, 3), (3, 3, 2), (3, 3, 3),
+    ],
+    triangles=(
+        cube.triangles +
+        [[x+8, y+8, z+8] for x, y, z in cube.triangles]
+    ),
+)
+
 # Hollow cube: surface consists of two cubes, one facing outwards
 # and one facing inwards.
 hollow_cube = Polyhedron(
@@ -144,7 +174,8 @@ hollow_cube = Polyhedron(
         # Outer cube.
         cube.triangles +
         # Inner cube: reverse orientation.
-        [[z+8, y+8, x+8] for x, y, z in cube.triangles]),
+        [[z+8, y+8, x+8] for x, y, z in cube.triangles]
+    ),
 )
 
 # Torus.
@@ -336,6 +367,68 @@ class TestPolyhedron(unittest.TestCase):
                     torus.winding_number(point)
             elif class_ == "outside":
                 self.assertEqual(torus.winding_number(point), 0)
+            else:
+                assert False, "never get here"
+
+    def test_aligned_stacked_cuboids(self):
+        self.assertEqual(aligned_stacked_cuboids.volume(), 18.0)
+
+        def classify(point):
+            x, y, z = point
+            if 0 < x < 3 and 0 < y < 3 and 0 < z < 1:
+                return "inside"
+            if 0 < x < 3 and 0 < y < 3 and 2 < z < 3:
+                return "inside"
+            if 0 <= x <= 3 and 0 <= y <= 3 and 0 <= z <= 1:
+                return "boundary"
+            if 0 <= x <= 3 and 0 <= y <= 3 and 2 <= z <= 3:
+                return "boundary"
+            return "outside"
+
+        xs = ys = zs = [0.25 * v for v in range(-1, 14)]
+        points = [(x, y, z) for x in xs for y in ys for z in zs]
+        for point in points:
+            class_ = classify(point)
+            if class_ == "inside":
+                self.assertEqual(
+                    aligned_stacked_cuboids.winding_number(point), 1)
+            elif class_ == "boundary":
+                with self.assertRaises(ValueError):
+                    aligned_stacked_cuboids.winding_number(point)
+            elif class_ == "outside":
+                self.assertEqual(
+                    aligned_stacked_cuboids.winding_number(point), 0)
+            else:
+                assert False, "never get here"
+
+    def test_misaligned_stacked_cuboids(self):
+        self.assertEqual(misaligned_stacked_cuboids.volume(), 8.0)
+
+        def classify(point):
+            x, y, z = point
+            if 0 < x < 2 and 0 < y < 2 and 0 < z < 1:
+                return "inside"
+            if 1 < x < 3 and 1 < y < 3 and 2 < z < 3:
+                return "inside"
+            if 0 <= x <= 2 and 0 <= y <= 2 and 0 <= z <= 1:
+                return "boundary"
+            if 1 <= x <= 3 and 1 <= y <= 3 and 2 <= z <= 3:
+                return "boundary"
+            return "outside"
+
+        xs = ys = zs = [0.25 * v for v in range(-1, 14)]
+        points = [(x, y, z) for x in xs for y in ys for z in zs]
+        for point in points:
+            class_ = classify(point)
+            if class_ == "inside":
+                self.assertEqual(
+                    misaligned_stacked_cuboids.winding_number(point), 1)
+            elif class_ == "boundary":
+                with self.assertRaises(ValueError):
+                    misaligned_stacked_cuboids.winding_number(point)
+            elif class_ == "outside":
+                self.assertEqual(
+                    misaligned_stacked_cuboids.winding_number(point), 0)
             else:
                 assert False, "never get here"
 
