@@ -12,6 +12,8 @@ def sign(x):
     return (x > 0) - (x < 0)
 
 
+#### Geometric primitives #####################################################
+
 def ccw2(p1, p2, p3):
     """
     Determine whether the line from p1 to p2 passes to the left or right of p3.
@@ -21,11 +23,32 @@ def ccw2(p1, p2, p3):
     points are collinear.
 
     """
-    det = (p2[1] - p3[1]) * (p1[0] - p3[0]) - (p2[0] - p3[0]) * (p1[1] - p3[1])
+    det = (p1[0] - p3[0]) * (p2[1] - p3[1]) - (p1[1] - p3[1]) * (p2[0] - p3[0])
     return sign(det)
 
 
-def ccw3(p1, p2, p3, p4):
+def vertex_sign(v1, origin):
+    """
+    Sign of the vertex v1, relative to the origin.
+
+    """
+    return (sign(v1[0] - origin[0]) or
+            sign(v1[1] - origin[1]) or
+            sign(v1[2] - origin[2]))
+
+
+def edge_sign(v1, v2, origin):
+    """
+    Sign of the edge from v1 to v2, relative to origin.
+
+    """
+    d = (ccw2(v1, v2, origin) or
+         ccw2((v1[0], v1[2]), (v2[0], v2[2]), (origin[0], origin[2])) or
+         ccw2((v1[1], v1[2]), (v2[1], v2[2]), (origin[1], origin[2])))
+    return d
+
+
+def face_sign(p1, p2, p3, p4):
     """
     Determine whether the counterclockwise triangle p1-p2-p3
     has normal pointing away or towards p4.
@@ -35,20 +58,23 @@ def ccw3(p1, p2, p3, p4):
     in the plane of the triangle p1-p2-p3.
 
     """
-    mat = [
-        [p1[0] - p4[0], p2[0] - p4[0], p3[0] - p4[0]],
-        [p1[1] - p4[1], p2[1] - p4[1], p3[1] - p4[1]],
-        [p1[2] - p4[2], p2[2] - p4[2], p3[2] - p4[2]],
-    ]
-    d = (
-        mat[0][0] * mat[1][1] * mat[2][2] +
-        mat[0][1] * mat[1][2] * mat[2][0] +
-        mat[0][2] * mat[1][0] * mat[2][1] -
-        mat[0][0] * mat[1][2] * mat[2][1] -
-        mat[0][1] * mat[1][0] * mat[2][2] -
-        mat[0][2] * mat[1][1] * mat[2][0])
-    return sign(d)
+    # We're computing the determinant of the matrix
+    #
+    #    ( p1[0]  p2[0]  p3[0]  p4[0] )
+    #    ( p1[1]  p2[1]  p3[1]  p4[1] )
+    #    ( p1[2]  p2[2]  p3[2]  p4[2] )
+    #    (  1      1       1       1  )
 
+    # Minors for 3rd row.
+    m1 = (p2[0] - p4[0]) * (p3[1] - p4[1]) - (p2[1] - p4[1]) * (p3[0] - p4[0])
+    m2 = (p1[0] - p4[0]) * (p3[1] - p4[1]) - (p1[1] - p4[1]) * (p3[0] - p4[0])
+    m3 = (p1[0] - p4[0]) * (p2[1] - p4[1]) - (p1[1] - p4[1]) * (p2[0] - p4[0])
+    m4 = (p1[0] - p3[0]) * (p2[1] - p3[1]) - (p1[1] - p3[1]) * (p2[0] - p3[0])
+
+    return sign(p1[2] * m1 - p2[2] * m2 + p3[2] * m3 - p4[2] * m4)
+
+
+#### Homology computations ####################################################
 
 def vertex_chain(v1, origin):
     """
@@ -59,8 +85,7 @@ def vertex_chain(v1, origin):
     Raise ValueError if v1 == origin.
 
     """
-    d = (sign(v1[0] - origin[0]) or
-         sign(v1[1] - origin[1]) or sign(v1[2] - origin[2]))
+    d = vertex_sign(v1, origin)
     if not d:
         raise ValueError("Vertex contains origin")
     return 0 if d > 0 else 1
@@ -79,9 +104,7 @@ def edge_chain(v1, v2, origin):
     if not edge_boundary:
         return 0
 
-    d = (ccw2(v1, v2, origin) or
-         ccw2((v1[0], v1[2]), (v2[0], v2[2]), (origin[0], origin[2])) or
-         ccw2((v1[1], v1[2]), (v2[1], v2[2]), (origin[1], origin[2])))
+    d = edge_sign(v1, v2, origin)
     if not d:
         raise ValueError("Edge contains origin")
 
@@ -105,7 +128,7 @@ def face_chain(v1, v2, v3, origin):
     if not face_boundary:
         return 0
 
-    d = ccw3(v1, v2, v3, origin)
+    d = face_sign(v1, v2, v3, origin)
     if not d:
         raise ValueError("Face contains origin")
 
