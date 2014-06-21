@@ -57,7 +57,7 @@ import unittest
 from polyhedron import Polyhedron
 
 
-# Some sample polyhedra.
+#### Sample polyhedra #########################################################
 
 # Regular tetrahedron.
 tetrahedron = Polyhedron(
@@ -223,6 +223,13 @@ torus = Polyhedron(
         [4, 12, 14], [14, 6, 4], [6, 14, 15], [15, 7, 6],
         [7, 15, 13], [13, 5, 7], [5, 13, 12], [12, 4, 5],
     ],
+)
+
+
+# Empty surface
+empty = Polyhedron(
+    vertex_positions=[],
+    triangles=[],
 )
 
 
@@ -484,6 +491,13 @@ class TestPolyhedron(unittest.TestCase):
                     misaligned_stacked_cuboids.winding_number(point), 0)
             else:
                 assert False, "never get here"
+
+    def test_empty(self):
+        self.assertEqual(empty.volume(), 0.0)
+        xs = ys = zs = [0.25 * v for v in range(-1, 14)]
+        points = [(x, y, z) for x in xs for y in ys for z in zs]
+        for point in points:
+            self.assertEqual(empty.winding_number(point), 0)
 
 
 if __name__ == '__main__':
