@@ -8,46 +8,47 @@ polyhedra, non simply-connected surfaces, and so on.  There are no requirements
 for the surface to be convex, simple, connected or simply-connected.
 
 More precisely, we give a method for computing the *winding number* of a closed
-oriented surface around a point P.  Roughly speaking, the winding number of the
-closed oriented surface S around a point P not on S is the number of times that
-the surface encloses that point; for a simple outward-oriented surface (like
-that of a convex polyhedron, for example), the winding number will be 1 for
-points inside the surface and 0 for points outside.
+oriented surface S around a point O that doesn't lie on S.  Roughly speaking,
+the winding number of the closed oriented surface S around a point O not on S
+is the number of times that the surface encloses that point; for a simple
+outward-oriented surface (like that of a convex polyhedron, for example), the
+winding number will be 1 for points inside the surface and 0 for points
+outside.
 
 For a precise definition of winding number, we can turn to algebraic topology:
 our oriented surface is presented as a collection of combinatorial data
 defining abstract vertices, edges and triangles, together with a mapping of
 those vertices to R^3.  The combinatorial data describe a simplicial complex C,
-and assuming that P doesn't lie on the surface, the mapping of the vertices to
-R^3 gives a continuous map from the geometric realization of C to R^3 - {P}.
+and assuming that O doesn't lie on the surface, the mapping of the vertices to
+R^3 gives a continuous map from the geometric realization of C to R^3 - {O}.
 This in turn induces a map on second homology groups:
 
-   H^2(C, Z) -> H^2(R^3 - {P}, Z)
+   H^2(C, Z) -> H^2(R^3 - {O}, Z)
 
 and by taking the usual right-handed orientation in R^3 we identify H^2(R^3 -
-{P}, Z) with Z.  The image of [S] under this map gives the winding number.  In
+{O}, Z) with Z.  The image of [S] under this map gives the winding number.  In
 particular, the well-definedness of the winding number does not depend on
 topological properties of the embedding: it doesn't matter if the surface is
-self-intersecting, or has degenerate triangles.  The only condition is that P
+self-intersecting, or has degenerate triangles.  The only condition is that O
 does not lie on the surface S.
 
 Algorithm
 ---------
 The algorithm is based around the usual method of ray-casting: we take a
-vertical line L through P and count the intersections of this line with the
+vertical line L through O and count the intersections of this line with the
 triangles of the surface, keeping track of orientations as we go.  Let's ignore
 corner cases for a moment and assume that:
 
-(1) P does not lie on the surface, and
+(1) O does not lie on the surface, and
 (2) for each triangle T (thought of as a closed subset of R^3) touched by
     our vertical line L, L meets the interior of T in exactly one point Q
 
 Then there are four possibilities for each such triangle T:
 
-1. T lies *above* P and is oriented *upwards* (*away* from P).
-2. T lies *above* P and is oriented *downwards* (*towards* P).
-3. T lies *below* P and is oriented *downwards* (*away* from P).
-4. T lies *below* P and is oriented *upwards* (*towards* P).
+1. T lies *above* O and is oriented *upwards* (*away* from O).
+2. T lies *above* O and is oriented *downwards* (*towards* O).
+3. T lies *below* O and is oriented *downwards* (*away* from O).
+4. T lies *below* O and is oriented *upwards* (*towards* O).
 
 Let's write N1, N2, N3 and N4 for the counts of triangles satisfying conditions
 1, 2, 3 and 4 respectively.  Since we have a closed surface, these numbers
@@ -61,22 +62,8 @@ downward-facing triangles.  The winding number w is then given by:
     w = N1 - N2 == N3 - N4
 
 In the code below, we simply compute 2*w = (N1 + N3) - (N2 + N4), so each
-triangle oriented away from P contributes 1 to 2w, while each triangle oriented
-towards P contributes -1.
-
-Determining whether a triangle QRS points away from or towards P involves
-finding the sign of the determinant of the 4x4 matrix
-
-   | Qx Rx Sx Px |
-   | Qy Ry Sy Py |
-   | Qz Rz Sz Pz |
-   |  1  1  1  1 |
-
-or equivalently of the 3x3 matrix
-
-   | Qx-Px Rx-Px Sx-Px |
-   | Qy-Py Ry-Py Sy-Py |
-   | Qz-Pz Rz-Pz Sz-Pz |
+triangle oriented away from O contributes 1 to 2w, while each triangle oriented
+towards O contributes -1.
 
 
 Making the algorithm robust
@@ -92,32 +79,63 @@ It turns out that to make the algorithm robust, all we need to do is be careful
 and consistent about classifying vertices, edges and triangles.  We do this as
 follows:
 
-- Each vertex of the surface that's not equal to P is considered *positive* if
-  its coordinates are lexicographically greater than P, and *negative*
+- Each vertex of the surface that's not equal to O is considered *positive* if
+  its coordinates are lexicographically greater than O, and *negative*
   otherwise.
 
-- Each edge QR of the surface that's not collinear with P is considered
-  *positive* if its projection to the x-y plane passes to the right of P (i.e.,
-  if Q-R-P represents a counterclockwise turn), and *negative* if it passes to
-  the left.  If the projected edge passes *through* P then the actual edge must
-  intersect L; in that case we consider the edge to be *positive* if it
-  intersects L at a point *below* P, and *negative* if it intersects L at a
-  point *above* P.
+- Each edge PQ of the surface that's not collinear with O is considered
+  *positive* if its projection to the x-y plane passes to the right of O (i.e.,
+  if P-Q-O represents a counterclockwise turn), and *negative* if it passes to
+  the left.  If the projected edge passes *through* O then the actual edge must
+  intersect L; in that case we look at the projections to the x-z plane
+  and to the y-z plane in turn, and take the first projection for which
+  the three points are not collinear.
 
-- Each triangle QRS of the surface that's not coplanar with P is considered
-  *positive* if its normal points away from P, and *negative* if its normal
-  points towards P.
+  Computationally, if P, Q and O are not collinear then the matrix
+
+   ( Px Qx Ox )
+   ( Py Qy Ox )
+   ( Pz Qz Ox )
+   (  1  1  1 )
+
+  has rank 3.  It follows that at least one of the three determinants
+
+   | Px Qx Ox |  | Px Qx Ox |  | Py Qy Oy |
+   | Py Qy Oy |  | Pz Qz Oz |  | Pz Qz Oz |
+   |  1  1  1 |  |  1  1  1 |  |  1  1  1 |
+
+  is nonzero.  We define the sign of PQ to be the sign of the first
+  nonzero determinant in that list.
+
+- Each triangle PQR of the surface that's not coplanar with O is considered
+  *positive* if its normal points away from O, and *negative* if its normal
+  points towards O.
+
+  Computationally, the sign of the triangle PQR is the sign of the determinant
+  of the 4x4 matrix
+
+    | Px Qx Rx Ox |
+    | Py Qy Ry Oy |
+    | Pz Qz Rz Oz |
+    |  1  1  1  1 |
+
+  or equivalently of the 3x3 matrix
+
+    | Px-Ox Qx-Ox Rx-Ox |
+    | Py-Oy Qy-Oy Ry-Oy |
+    | Pz-Oz Qz-Oz Rz-Oz |
+
 
 Now to compute the contribution of any given triangle to the total winding
 number:
 
 1. Classify the vertices of the triangle.  At the same time, we can check that
-   none of the vertices is equal to P.  If all vertices have the same sign,
+   none of the vertices is equal to O.  If all vertices have the same sign,
    then the winding number contribution is zero.
 
 2. Assuming that the vertices do not all have the same sign, two of the three
    edges connect two differently-signed vertices.  Classify both those edges
-   (and simultaneously check that they don't pass through P).  If the edges
+   (and simultaneously check that they don't pass through O).  If the edges
    have opposite classification, then the winding number contribution is zero.
 
 3. Now two of the edges have the same sign: classify the triangle itself.  If
@@ -125,9 +143,9 @@ number:
    negative it contributes -1/2.  In practice we count contributions of 1 and
    -1, and halve the total at the end.
 
-Note that an edge between two like-signed vertices can never pass through P, so
+Note that an edge between two like-signed vertices can never pass through O, so
 there's no need to check the third edge in step 2.  Similarly, a triangle whose
-edge-cycle is trivial can't contain P in its interior.
+edge-cycle is trivial can't contain O in its interior.
 
 """
 
@@ -140,43 +158,36 @@ def sign(x):
     return (x > 0) - (x < 0)
 
 
-def vertex_sign(v1, origin):
-    result = (
-        sign(v1[0] - origin[0]) or
-        sign(v1[1] - origin[1]) or
-        sign(v1[2] - origin[2]))
+def vertex_sign(P, O):
+    result = sign(P[0] - O[0]) or sign(P[1] - O[1]) or sign(P[2] - O[2])
     if not result:
         raise ValueError("vertex coincides with origin")
     return result
 
 
-def edge_sign(v1, v2, origin):
+def edge_sign(P, Q, O):
     result = (
-        sign((v1[0] - origin[0]) * (v2[1] - origin[1]) -
-             (v1[1] - origin[1]) * (v2[0] - origin[0])) or
-        sign((v1[0] - origin[0]) * (v2[2] - origin[2]) -
-             (v1[2] - origin[2]) * (v2[0] - origin[0])) or
-        sign((v1[1] - origin[1]) * (v2[2] - origin[2]) -
-             (v1[2] - origin[2]) * (v2[1] - origin[1])))
+        sign((P[0] - O[0]) * (Q[1] - O[1]) - (P[1] - O[1]) * (Q[0] - O[0])) or
+        sign((P[0] - O[0]) * (Q[2] - O[2]) - (P[2] - O[2]) * (Q[0] - O[0])) or
+        sign((P[1] - O[1]) * (Q[2] - O[2]) - (P[2] - O[2]) * (Q[1] - O[1]))
+    )
     if not result:
         raise ValueError("vertices collinear with origin")
+    print("Edge: ", P, Q, result)
     return result
 
 
-def triangle_sign(v1, v2, v3, origin):
-    m1_0 = v1[0] - origin[0]
-    m1_1 = v1[1] - origin[1]
-    m1_2 = v1[2] - origin[2]
-    m2_0 = v2[0] - origin[0]
-    m2_1 = v2[1] - origin[1]
-    m2_2 = v2[2] - origin[2]
-    m3_0 = v3[0] - origin[0]
-    m3_1 = v3[1] - origin[1]
-    m3_2 = v3[2] - origin[2]
-    m12_01 = m1_0 * m2_1 - m1_1 * m2_0
-    m23_01 = m2_0 * m3_1 - m2_1 * m3_0
-    m31_01 = m3_0 * m1_1 - m3_1 * m1_0
-    result = sign(m12_01 * m3_2 + m23_01 * m1_2 + m31_01 * m2_2)
+def triangle_sign(P, Q, R, O):
+    m1_0 = P[0] - O[0]
+    m1_1 = P[1] - O[1]
+    m2_0 = Q[0] - O[0]
+    m2_1 = Q[1] - O[1]
+    m3_0 = R[0] - O[0]
+    m3_1 = R[1] - O[1]
+    result = sign(
+        (m1_0 * m2_1 - m1_1 * m2_0) * (R[2] - O[2]) +
+        (m2_0 * m3_1 - m2_1 * m3_0) * (P[2] - O[2]) +
+        (m3_0 * m1_1 - m3_1 * m1_0) * (Q[2] - O[2]))
     if not result:
         raise ValueError("vertices coplanar with origin")
     return result
