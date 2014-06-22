@@ -83,43 +83,75 @@ follows:
   its coordinates are lexicographically greater than O, and *negative*
   otherwise.
 
-- Each edge PQ of the surface that's not collinear with O is considered
-  *positive* if its projection to the x-y plane passes to the right of O (i.e.,
-  if P-Q-O represents a counterclockwise turn), and *negative* if it passes to
-  the left.  If the projected edge passes *through* O then the actual edge must
-  intersect L; in that case we look at the projections to the x-z plane
-  and to the y-z plane in turn, and take the first projection for which
-  the three points are not collinear.
+- For an edge PQ of the surface that's not collinear with O, we first describe
+  the classification in the case that P is negative and Q is positive, and
+  then extend to arbitrary PQ.
 
-  Computationally, if P, Q and O are not collinear then the matrix
+  For P negative and Q positive, there are two cases:
+
+  1. P and Q have distinct x coordinates.  In that case we classify the edge
+     PQ by its intersection with the plane passing through O and parallel
+     to the yz-plane: the edge is *positive* if the intersection point is
+     positive, and *negative* otherwise.
+
+  2. P and Q have the same x coordinate, in which case they must have
+     distinct y coordinates.  (If the x and the y coordinates both match
+     then PQ passes through O.)  We classify by the intersection of PQ
+     with the line parallel to the y-axis through O.
+
+  For P positive and Q negative, we classify as above but reverse the sign.
+  For like-signed P and Q, the classification isn't used.
+
+  Computationally, in case 1 above, the y-coordinate of the intersection
+  point is:
+
+      Py + (Qy - Py) * (Ox - Px) / (Qx - Px)
+
+  and this is greater than Oy iff
+
+      (Py - Oy) * (Qx - Ox) - (Px - Ox) * (Qy - Oy)
+
+  is positive, so the sign of the edge is the sign of the above expression.
+  Similarly, if this quantity is zero then we need to look at the z-coordinate
+  of the intersection, and the sign of the edge is given by
+
+      (Pz - Oz) * (Qx - Ox) - (Px - Ox) * (Qz - Oz)
+
+  In case 2, both of the above quantities are zero, and the sign of the edge is
+  the sign of
+
+      (Pz - Oz) * (Qy - Oy) - (Py - Oy) * (Qz - Oz)
+
+  Another way to look at this: if P, Q and O are not collinear then the
+  matrix
 
    ( Px Qx Ox )
    ( Py Qy Ox )
    ( Pz Qz Ox )
    (  1  1  1 )
 
-  has rank 3.  It follows that at least one of the three determinants
+  has rank 3.  It follows that at least one of the three 3x3 minors
 
    | Px Qx Ox |  | Px Qx Ox |  | Py Qy Oy |
    | Py Qy Oy |  | Pz Qz Oz |  | Pz Qz Oz |
    |  1  1  1 |  |  1  1  1 |  |  1  1  1 |
 
-  is nonzero.  We define the sign of PQ to be the sign of the first
-  nonzero determinant in that list.
+  is nonzero.  We define the sign of PQ to be the *negative* of the sign of the
+  first nonzero minor in that list.
 
 - Each triangle PQR of the surface that's not coplanar with O is considered
   *positive* if its normal points away from O, and *negative* if its normal
   points towards O.
 
-  Computationally, the sign of the triangle PQR is the sign of the determinant
-  of the 4x4 matrix
+  Computationally, the sign of the triangle PQR is the sign of the 4x4
+  determinant
 
     | Px Qx Rx Ox |
     | Py Qy Ry Oy |
     | Pz Qz Rz Oz |
     |  1  1  1  1 |
 
-  or equivalently of the 3x3 matrix
+  or equivalently of the 3x3 determinant
 
     | Px-Ox Qx-Ox Rx-Ox |
     | Py-Oy Qy-Oy Ry-Oy |
@@ -147,6 +179,47 @@ Note that an edge between two like-signed vertices can never pass through O, so
 there's no need to check the third edge in step 2.  Similarly, a triangle whose
 edge-cycle is trivial can't contain O in its interior.
 
+To understand what's going on above, it's helpful to step into the world of
+homology again. The homology of R^3 - {O} can be identified with that of the
+two-sphere S^2 by deformation retract, and we can decompose the two-sphere as a
+CW complex consisting of six cells, as follows:
+
+* 0-cells B and F, where B = (-1, 0, 0) and F = (1, 0, 0)
+* 1-cells L and R, where
+     L = {(cos t, sin t, 0) | -pi <= t <= 0 }
+     R = {(cos t, sin t, 0) | 0 <= t <= pi }
+* 2-cells U and D, where U is the top half of the sphere (z >= 0)
+  and D is the bottom half (z <= 0), both oriented outwards.
+
+And the homology of the CW complex is now representable in terms of cellular
+homology:
+
+               d               d
+  Z[U] + Z[D] --> Z[L] + Z[R] --> Z[B] + Z[F]
+
+with boundary maps given by:
+
+  d[U] = [L] + [R]; d[D] = -[L] - [R]
+  d[R] = [B] - [F]; d[L] = [F] - [B]
+
+Now the original map C -> R^3 - {O} from the geometric realization of the
+simplicial complex is homotopic to a map C -> S^2 that sends:
+
+* each positive vertex to F and each negative vertex to B
+* each edge with boundary [F] - [B] to L if the edge is negative, and -R if the
+  edge is positive
+* each edge with boundary [B] - [F] to R if the edge is positive, and -L if the
+  edge is negative
+* all other edges to 0
+* each triangle whose boundary is [L] + [R] to either U or -D,
+  depending on whether the triangle is positive or negative
+* each triangle whose boundary is -[L] - [R] to either D or -U,
+  depending on whether the triangle is positive or negative
+* all other triangles to 0
+
+Mapping all of the triangles in the surface this way, and summing the results
+in second homology, we end up with (winding number)*([U] + [D]).
+
 """
 
 
@@ -159,6 +232,10 @@ def sign(x):
 
 
 def vertex_sign(P, O):
+    """
+    Sign of the vertex P with respect to O, as defined above.
+
+    """
     result = sign(P[0] - O[0]) or sign(P[1] - O[1]) or sign(P[2] - O[2])
     if not result:
         raise ValueError("vertex coincides with origin")
@@ -166,18 +243,25 @@ def vertex_sign(P, O):
 
 
 def edge_sign(P, Q, O):
+    """
+    Sign of the edge PQ with respect to O, as defined above.
+
+    """
     result = (
-        sign((P[0] - O[0]) * (Q[1] - O[1]) - (P[1] - O[1]) * (Q[0] - O[0])) or
-        sign((P[0] - O[0]) * (Q[2] - O[2]) - (P[2] - O[2]) * (Q[0] - O[0])) or
-        sign((P[1] - O[1]) * (Q[2] - O[2]) - (P[2] - O[2]) * (Q[1] - O[1]))
+        sign((P[1] - O[1]) * (Q[0] - O[0]) - (P[0] - O[0]) * (Q[1] - O[1])) or
+        sign((P[2] - O[2]) * (Q[0] - O[0]) - (P[0] - O[0]) * (Q[2] - O[2])) or
+        sign((P[2] - O[2]) * (Q[1] - O[1]) - (P[1] - O[1]) * (Q[2] - O[2]))
     )
     if not result:
         raise ValueError("vertices collinear with origin")
-    print("Edge: ", P, Q, result)
     return result
 
 
 def triangle_sign(P, Q, R, O):
+    """
+    Sign of the triangle PQR with respect to O, as defined above.
+
+    """
     m1_0 = P[0] - O[0]
     m1_1 = P[1] - O[1]
     m2_0 = Q[0] - O[0]
