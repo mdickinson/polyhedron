@@ -11,7 +11,7 @@ else:
 from polygon import Polygon
 
 
-class TestWindingNumber(unittest.TestCase):
+class TestPolygon(unittest.TestCase):
     def test_simple_square(self):
         square = Polygon(
             vertex_positions=[
