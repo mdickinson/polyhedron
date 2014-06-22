@@ -74,6 +74,28 @@ class Polygon(object):
         """
         self.vertex_positions = vertex_positions
 
+    def edge_positions(self):
+        """
+        Pairs of vertex positions corresponding to the polygon edges.
+
+        """
+        points = self.vertex_positions
+        return zip(points, points[1:] + points[:1])
+
+    def area(self):
+        """
+        Area enclosed by this polygon.
+
+        For simple counterclockwise-oriented polygons, return the area
+        enclosed by the polygon.  More generally, return the integral
+        of the winding number of the polygon over R^2.
+
+        """
+        acc = 0.0
+        for p1, p2 in self.edge_positions():
+            acc += (p1[0] - p2[0]) * (p1[1] + p2[1])
+        return acc / 2.0
+
     def winding_number(self, origin):
         """
         Compute the (counterclockwise) winding number of a polygon around a
@@ -83,8 +105,7 @@ class Polygon(object):
         of the polygon.
 
         """
-        points = self.vertex_positions
-        edges = zip(points, points[1:] + points[:1])
         return sum(
-            half_turn(
-                point1, point2, origin) for point1, point2 in edges) // 2
+            half_turn(point1, point2, origin)
+            for point1, point2 in self.edge_positions()
+        ) // 2

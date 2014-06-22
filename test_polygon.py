@@ -19,6 +19,7 @@ class TestWindingNumber(unittest.TestCase):
         )
         origin = (0.0, 0.0)
         self.assertEqual(square.winding_number(origin), 1)
+        self.assertEqual(square.area(), 4.0)
 
     def test_double_square(self):
         square = Polygon(
@@ -31,6 +32,7 @@ class TestWindingNumber(unittest.TestCase):
         )
         origin = (0.0, 0.0)
         self.assertEqual(square.winding_number(origin), 2)
+        self.assertEqual(square.area(), 8.0)
 
     def test_clockwise_square(self):
         square = Polygon(
@@ -43,6 +45,7 @@ class TestWindingNumber(unittest.TestCase):
         )
         origin = (0.0, 0.0)
         self.assertEqual(square.winding_number(origin), -1)
+        self.assertEqual(square.area(), -4.0)
 
     def test_various_points_in_square(self):
         square = Polygon(
