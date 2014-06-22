@@ -83,7 +83,6 @@ pair_of_cubes = Polyhedron(
 )
 
 # Two stacked cuboids, one directly above the other.
-
 aligned_stacked_cuboids = Polyhedron(
     vertex_positions=[
         (0, 0, 0), (0, 0, 1), (0, 3, 0), (0, 3, 1),
@@ -184,6 +183,43 @@ empty = Polyhedron(
 )
 
 
+# A hexadecahedron wrapped twice around the origin, so that its image
+# in R^3 looks like the surface of an octahedron.  All points inside
+# the surface have winding number 2.
+twice_wrapped_octahedron = Polyhedron(
+    triangles=[
+        (0, 1, 2),
+        (0, 2, 3),
+        (0, 3, 4),
+        (0, 4, 5),
+        (0, 5, 6),
+        (0, 6, 7),
+        (0, 7, 8),
+        (0, 8, 1),
+        (9, 2, 1),
+        (9, 3, 2),
+        (9, 4, 3),
+        (9, 5, 4),
+        (9, 6, 5),
+        (9, 7, 6),
+        (9, 8, 7),
+        (9, 1, 8),
+    ],
+    vertex_positions=[
+        (0.0, 0.0, 1.0),
+        (1.0, 0.0, 0.0),
+        (0.0, 1.0, 0.0),
+        (-1.0, 0.0, 0.0),
+        (0.0, -1.0, 0.0),
+        (1.0, 0.0, 0.0),
+        (0.0, 1.0, 0.0),
+        (-1.0, 0.0, 0.0),
+        (0.0, -1.0, 0.0),
+        (0.0, 0.0, -1.0),
+    ],
+)
+
+
 class TestPolyhedron(unittest.TestCase):
     def test_tetrahedron(self):
         xs = ys = zs = [0.25 * v for v in range(-1, 6)]
@@ -257,6 +293,29 @@ class TestPolyhedron(unittest.TestCase):
                     octahedron.winding_number(point)
             else:
                 assert False, "never get here"
+
+    def test_twice_wrapped_octahedron(self):
+        poly = twice_wrapped_octahedron
+
+        self.assertEqual(poly.volume(), 8.0 / 3.0)
+
+        def winding_number(point):
+            x, y, z = point
+            s = abs(x) + abs(y) + abs(z)
+            if s == 1:
+                raise ValueError("boundary")
+            return 2 if s < 1 else 0
+
+        xs = ys = zs = [0.25 * v for v in range(-5, 6)]
+        points = [(x, y, z) for x in xs for y in ys for z in zs]
+        for point in points:
+            try:
+                expected = winding_number(point)
+            except ValueError:
+                with self.assertRaises(ValueError):
+                    poly.winding_number(point)
+            else:
+                self.assertEqual(poly.winding_number(point), expected)
 
     def test_pair_of_cubes(self):
         self.assertEqual(pair_of_cubes.volume(), 2.0)
