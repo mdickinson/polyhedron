@@ -1,9 +1,12 @@
 """
-Tests for winding number calculation.
+Tests for Polyhedron winding number calculation.
 
 """
-
-import unittest
+import sys
+if sys.version_info >= (2, 7):
+    import unittest
+else:
+    import unittest2 as unittest
 
 from polyhedron import Polyhedron
 

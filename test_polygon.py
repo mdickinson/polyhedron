@@ -2,7 +2,11 @@
 Tests for Polygon.winding_number.
 
 """
-import unittest
+import sys
+if sys.version_info >= (2, 7):
+    import unittest
+else:
+    import unittest2 as unittest
 
 from polygon import Polygon
 
