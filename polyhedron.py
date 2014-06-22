@@ -303,6 +303,32 @@ def triangle_chain(v1, v2, v3, origin):
 
 class Polyhedron(object):
     def __init__(self, triangles, vertex_positions):
+        """
+        Initialize from list of triangles and vertex positions.
+
+        """
+        # Validate: check the combinatorial data.
+        edges = set()
+        vertices = set()
+        for triangle in triangles:
+            vertices.update(triangle)
+            P, Q, R = triangle
+            for edge in ((P, Q), (Q, R), (R, P)):
+                if edge[0] == edge[1]:
+                    raise ValueError("Self edge: {!r}".format(edge))
+                if edge in edges:
+                    raise ValueError("Duplicate edge: {!r}".format(edge))
+                edges.add(edge)
+
+        # For each edge that appears, the reverse edge should also appear.
+        for P, Q in edges:
+            if not (Q, P) in edges:
+                raise ValueError("Unmatched edge: {!r}".format((P, Q)))
+
+        # Vertex set should match indices in vertex_positions.
+        if vertices != set(range(len(vertex_positions))):
+            raise ValueError("Vertex set doesn't match position indices.")
+
         # Vertex positions in R^3.
         self.vertex_positions = vertex_positions
         # Indices making up each triangle, counterclockwise

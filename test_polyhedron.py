@@ -183,6 +183,21 @@ empty = Polyhedron(
 )
 
 
+# Double-sided triangle.  This is the simplest valid nontrivial
+# surface.
+triangle = Polyhedron(
+    triangles=[
+        [0, 1, 2],
+        [2, 1, 0],
+    ],
+    vertex_positions=[
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0],
+    ],
+)
+
+
 # A hexadecahedron wrapped twice around the origin, so that its image
 # in R^3 looks like the surface of an octahedron.  All points inside
 # the surface have winding number 2.
@@ -221,6 +236,58 @@ twice_wrapped_octahedron = Polyhedron(
 
 
 class TestPolyhedron(unittest.TestCase):
+    def test_invalid_polyhedra(self):
+        with self.assertRaises(ValueError):
+            # Tetrahedron with one face incorrectly oriented.
+            Polyhedron(
+                vertex_positions=[
+                    (0, 0, 0),
+                    (0, 1, 1),
+                    (1, 0, 1),
+                    (1, 1, 0),
+                ],
+                triangles=[
+                    [0, 1, 3],
+                    [0, 1, 2],
+                    [0, 3, 2],
+                    [1, 2, 3],
+                ],
+            )
+
+        with self.assertRaises(ValueError):
+            # Tetrahedron with a duplicated face.
+            Polyhedron(
+                vertex_positions=[
+                    (0, 0, 0),
+                    (0, 1, 1),
+                    (1, 0, 1),
+                    (1, 1, 0),
+                ],
+                triangles=[
+                    [0, 1, 3],
+                    [0, 2, 1],
+                    [0, 3, 2],
+                    [1, 2, 3],
+                    [1, 2, 3],
+                ],
+            )
+
+        with self.assertRaises(ValueError):
+            # Tetrahedron with a missing face.
+            Polyhedron(
+                vertex_positions=[
+                    (0, 0, 0),
+                    (0, 1, 1),
+                    (1, 0, 1),
+                    (1, 1, 0),
+                ],
+                triangles=[
+                    [0, 1, 3],
+                    [0, 2, 1],
+                    [0, 3, 2],
+                ],
+            )
+
     def test_tetrahedron(self):
         xs = ys = zs = [0.25 * v for v in range(-1, 6)]
         points = [(x, y, z) for x in xs for y in ys for z in zs]
