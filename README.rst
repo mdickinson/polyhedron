@@ -1,3 +1,6 @@
+Polyhedron
+==========
+
 This repository contains a pure Python implementation of a robust algorithm for
 point-in-polyhedron testing.
 
