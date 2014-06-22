@@ -198,9 +198,10 @@ triangle = Polyhedron(
 )
 
 
-# A hexadecahedron wrapped twice around the origin, so that its image
-# in R^3 looks like the surface of an octahedron.  All points inside
-# the surface have winding number 2.
+# A hexadecahedron that's topologically equivalent to two octagonal pyramids
+# glued base-to-base, but with a mapping into R^3 that wraps the surface twice
+# around the origin, so that its image in R^3 looks like the surface of an
+# octahedron.  All points inside the surface have winding number 2.
 twice_wrapped_octahedron = Polyhedron(
     triangles=[
         (0, 1, 2),
