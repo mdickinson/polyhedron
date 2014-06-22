@@ -1,63 +1,14 @@
-"""Code to determine the winding number for a polyhedron around a point, where
-that polyhedron is expressed as a (closed, oriented) triangulated surface.
-
-Without loss of generality, we can assume that the point we're interested in is
-the origin.
-
-Note: assuming that the given point doesn't lie on any one of the triangles of
-the surface, the winding number can be defined as the image of the surface in
-the singular homology group H_2 (details needed).
-
-Strategy: we consider the 2-sphere as a CW complex:
-
- 0-cells F and B:  F = (1, 0, 0), B = (-1, 0, 0).
- 1-cells L and R:
-     L goes from B to F in the x-y plane, through (0, -1, 0)
-     R goes from F to B in the x-y plane, through (0, 1, 0)
-     Boundary of L is F - B.
-     Boundary of R is B - F.
- 2-cells U and D:
-     U goes through (0, 0, 1).  Boundary is L+R
-     D goes through (0, 0, -1). Boundary is -(L+R).
- 2-sphere itself is U+D.
-
-Define subsets of R^3 minus the origin:
-
-  P = {(x, y, z) : (x, y, z) > (0, 0, 0) under lexicographic ordering}
-  N = {(x, y, z) : (x, y, z) < (0, 0, 0) under lexicographic ordering}
-
-  P intersect (x == 0) is {(y, z) | (y, z) > (0, 0)}, which contains
-
-
-Map all vertices of the polyhedron to F and B:
-  points in P map to F
-  points in N map to B
-
-Mapping edges:
-  any line segment from a point in N to a point in P must go through
-  x == 0 (every point in N has x <= 0, while every point in P has x >= 0).
-  There are two cases: (1) both N and P are contained in x == 0, and
-  (2) there's a single point of intersection with x == 0.
-
-  In case (1), look at the intersection with y == 0 (the z-axis):
-  if it's in P, map to R or -R; if in N, map to L or -L (choose sign
-  according to the boundary).
-
-  In case (2), if that single point of intersection lies in P, then
-  the edge maps to R or -R (depending on its start and end).  If
-  the single point of intersection lies in N, the edge maps to L or -L.
-
-For each triangle:
-  map the vertices to F and B.  If all 3 map to the same, nothing to do.
-  map the edges to L and R.
+"""
+Tests for winding number calculation.
 
 """
+
 import unittest
 
 from polyhedron import Polyhedron
 
 
-#### Sample polyhedra #########################################################
+# Sample polyhedra ############################################################
 
 # Regular tetrahedron.
 tetrahedron = Polyhedron(
