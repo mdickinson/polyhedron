@@ -590,10 +590,10 @@ class TestPolyhedron(unittest.TestCase):
     @unittest.skipUnless(NUMPY_AVAILABLE, "Test requires NumPy")
     def test_numpy_float64_compatibility(self):
         # This is a repetition of test_cube, but using NumPy float64
-        # values in place of Python floats, and ndarrays in place
-        # of lists or tuples.
+        # and int64 values in place of Python ints for vertices and triangles
+        # (respectively), and ndarrays in place of lists or tuples.
         numpy_cube = Polyhedron(
-            triangles=numpy.array(cube.triangles, dtype=numpy.float64),
+            triangles=numpy.array(cube.triangles, dtype=numpy.int64),
             vertex_positions=numpy.array(
                 cube.vertex_positions, dtype=numpy.float64),
         )
