@@ -2,11 +2,7 @@
 Tests for Polyhedron winding number calculation.
 
 """
-import sys
-if sys.version_info >= (2, 7):
-    import unittest
-else:
-    import unittest2 as unittest
+import unittest
 
 try:
     import numpy
