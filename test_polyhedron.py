@@ -8,6 +8,13 @@ if sys.version_info >= (2, 7):
 else:
     import unittest2 as unittest
 
+try:
+    import numpy
+except ImportError:
+    NUMPY_AVAILABLE = False
+else:
+    NUMPY_AVAILABLE = True
+
 from polyhedron import Polyhedron
 
 
@@ -579,6 +586,84 @@ class TestPolyhedron(unittest.TestCase):
         points = [(x, y, z) for x in xs for y in ys for z in zs]
         for point in points:
             self.assertEqual(empty.winding_number(point), 0)
+
+    @unittest.skipUnless(NUMPY_AVAILABLE, "Test requires NumPy")
+    def test_numpy_float64_compatibility(self):
+        # This is a repetition of test_cube, but using NumPy float64
+        # and int64 values in place of Python ints for vertices and triangles
+        # (respectively), and ndarrays in place of lists or tuples.
+        numpy_cube = Polyhedron(
+            triangles=numpy.array(cube.triangles, dtype=numpy.int64),
+            vertex_positions=numpy.array(
+                cube.vertex_positions, dtype=numpy.float64),
+        )
+
+        # Check volume
+        self.assertEqual(numpy_cube.volume(), 8)
+
+        def classify(point):
+            x, y, z = point
+            if -1 < x < 1 and -1 < y < 1 and -1 < z < 1:
+                return "inside"
+            if -1 <= x <= 1 and -1 <= y <= 1 and -1 <= z <= 1:
+                return "boundary"
+            return "outside"
+
+        # Quarter-integer boundaries from -1.25 to 1.25 inclusive.
+        xs = ys = zs = numpy.linspace(-1.25, 1.25, 11)
+
+        points = [(x, y, z) for x in xs for y in ys for z in zs]
+        for point in points:
+            class_ = classify(point)
+            if class_ == "inside":
+                self.assertEqual(numpy_cube.winding_number(point), 1)
+            elif class_ == "outside":
+                self.assertEqual(numpy_cube.winding_number(point), 0)
+            elif class_ == "boundary":
+                # Point is on the boundary.
+                with self.assertRaises(ValueError):
+                    numpy_cube.winding_number(point)
+            else:
+                assert False, "should never get here"
+
+    @unittest.skipUnless(NUMPY_AVAILABLE, "Test requires NumPy")
+    def test_numpy_int64_compatibility(self):
+        # This is a repetition of test_cube, but using NumPy int64
+        # values in place of Python ints, and ndarrays in place
+        # of lists or tuples.
+        numpy_cube = Polyhedron(
+            triangles=numpy.array(cube.triangles, dtype=numpy.int64),
+            vertex_positions=numpy.array(
+                cube.vertex_positions, dtype=numpy.int64),
+        )
+
+        # Check volume
+        self.assertEqual(numpy_cube.volume(), 8)
+
+        def classify(point):
+            x, y, z = point
+            if -1 < x < 1 and -1 < y < 1 and -1 < z < 1:
+                return "inside"
+            if -1 <= x <= 1 and -1 <= y <= 1 and -1 <= z <= 1:
+                return "boundary"
+            return "outside"
+
+        # Quarter-integer boundaries from -1.25 to 1.25 inclusive.
+        xs = ys = zs = numpy.linspace(-1.25, 1.25, 11)
+
+        points = [(x, y, z) for x in xs for y in ys for z in zs]
+        for point in points:
+            class_ = classify(point)
+            if class_ == "inside":
+                self.assertEqual(numpy_cube.winding_number(point), 1)
+            elif class_ == "outside":
+                self.assertEqual(numpy_cube.winding_number(point), 0)
+            elif class_ == "boundary":
+                # Point is on the boundary.
+                with self.assertRaises(ValueError):
+                    numpy_cube.winding_number(point)
+            else:
+                assert False, "should never get here"
 
 
 if __name__ == '__main__':
