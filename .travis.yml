@@ -6,7 +6,7 @@ python:
   - 3.7
   - pypy
 script:
-  - python -m unittest discover -v; fi
+  - python -m unittest discover -v
 notifications:
   email:
     - dickinsm@gmail.com
