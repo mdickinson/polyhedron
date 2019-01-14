@@ -8,6 +8,13 @@ if sys.version_info >= (2, 7):
 else:
     import unittest2 as unittest
 
+try:
+    import numpy
+except ImportError:
+    NUMPY_AVAILABLE = False
+else:
+    NUMPY_AVAILABLE = True
+
 from polygon import Polygon
 
 
@@ -124,3 +131,20 @@ class TestPolygon(unittest.TestCase):
             else:
                 with self.assertRaises(ValueError):
                     aitch.winding_number(point)
+
+    @unittest.skipUnless(NUMPY_AVAILABLE, "Test requires NumPy")
+    def test_numpy_compatibility(self):
+        square = Polygon(
+            vertex_positions=numpy.array(
+                [
+                    [1.0, -1.0],
+                    [1.0, 1.0],
+                    [-1.0, 1.0],
+                    [-1.0, -1.0],
+                ],
+                dtype=numpy.float64,
+            )
+        )
+        origin = numpy.array([0.0, 0.0], dtype=numpy.float64)
+        self.assertEqual(square.winding_number(origin), 1)
+        self.assertEqual(square.area(), 4.0)
