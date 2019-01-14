@@ -228,7 +228,12 @@ def sign(x):
     Return 1 if x is positive, -1 if it's negative, and 0 if it's zero.
 
     """
-    return (x > 0) - (x < 0)
+    if x > 0:
+        return 1
+    elif x < 0:
+        return -1
+    else:
+        return 0
 
 
 def vertex_sign(P, O):
